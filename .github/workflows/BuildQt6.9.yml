@@ -1,0 +1,131 @@
+name: Build Qt 6.9
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # Windows MSVC Debug/Release
+          - os: windows-latest; compiler: msvc; config: Release
+          - os: windows-latest; compiler: msvc; config: Debug
+          # Windows MinGW Debug/Release
+          - os: windows-latest; compiler: mingw; config: Release
+          - os: windows-latest; compiler: mingw; config: Debug
+          # Ubuntu GCC Debug/Release
+          - os: ubuntu-latest; compiler: gcc; config: Release
+          - os: ubuntu-latest; compiler: gcc; config: Debug
+          # Ubuntu Clang Debug/Release
+          - os: ubuntu-latest; compiler: clang; config: Release
+          - os: ubuntu-latest; compiler: clang; config: Debug
+          # macOS Clang Debug/Release
+          - os: macos-latest; compiler: clang; config: Release
+          - os: macos-latest; compiler: clang; config: Debug
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y cmake ninja-build build-essential python3 zip
+            # 安装 X11 依赖示例（视需要选择）
+            sudo apt-get install -y libfontconfig1-dev libfreetype-dev \
+              libx11-dev libxcb1-dev libxext-dev libxi-dev libxkbcommon-dev
+            if [ "${{ matrix.compiler }}" == "clang" ]; then
+              sudo apt-get install -y clang
+            fi
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            brew install ninja
+          fi
+          if [ "${{ matrix.os }}" == "windows-latest" -a "${{ matrix.compiler }}" == "mingw" ]; then
+            choco install -y mingw ninja python
+          fi
+          if [ "${{ matrix.os }}" == "windows-latest" -a "${{ matrix.compiler }}" == "msvc" ]; then
+            choco install -y python ninja
+          fi
+
+      - name: Setup Qt build (Windows only)
+        if: runner.os == 'Windows'
+        run: |
+          if [ "${{ matrix.compiler }}" == "msvc" ]; then
+            powershell -Command "& {'${VSWHERE}=(Get-Item 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' | Get-ChildItem | Where-Object { \$_.GetValue('DisplayName') -match 'Microsoft Visual Studio 2022' } | Select-Object -First 1).GetValue('InstallLocation'); & \"${VSWHERE}\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64'}"
+          fi
+
+      - name: Download Qt 6.9 source
+        run: |
+          mkdir qt6src && cd qt6src
+          curl -L -O https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz
+          tar xf qt-everywhere-src-6.9.0.tar.xz
+
+      - name: Configure Qt
+        run: |
+          cd qt6src/qt-everywhere-src-6.9.0
+          mkdir build && cd build
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            CONFIG_CMD="../configure.bat"
+          else
+            CONFIG_CMD="../configure"
+          fi
+          # 公共配置选项
+          $CONFIG_CMD -prefix %CD%/install -opensource -confirm-license -nomake examples -nomake tests -skip qtwebengine \
+            $([ "${{ matrix.config }}" == "Debug" ] && echo "-debug" || echo "-release") \
+            $([ "${{ matrix.config }}" == "Release" ] && echo "" || echo "") 
+      - name: Build and Install Qt
+        run: |
+          cd qt6src/qt-everywhere-src-6.9.0/build
+          cmake --build . --parallel
+          cmake --install .  # 安装到上面指定的 install 目录
+
+      - name: Package binaries
+        run: |
+          cd qt6src/qt-everywhere-src-6.9.0/build
+          ARCHIVE_NAME=Qt6.9-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.config }}.zip
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            powershell Compress-Archive -Path install -DestinationPath $ARCHIVE_NAME
+          else
+            zip -r $ARCHIVE_NAME install
+          fi
+          echo "artifact=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Qt6.9-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.config }}
+          path: qt6src/qt-everywhere-src-6.9.0/build/${{ steps.package.outputs.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v6.9.0
+          release_name: Qt 6.9.0
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/
+          asset_name: Qt6.9-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.config }}.zip
+          asset_content_type: application/zip
