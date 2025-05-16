@@ -1,126 +1,82 @@
-name: Build Qt 6.9.0 (All Modes)
+name: Build Qt 6.9.0
 
 on:
-  workflow_dispatch:
-
-env:
-  QT_VERSION: 6.9.0
-  QT_MAJOR_MINOR: 6.9
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-        compiler: [msvc, gcc, clang]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler: [gcc, clang, msvc]
         build_type: [Debug, Release, DebugAndRelease]
-        exclude:
-          # 不支持在Linux/macOS下用msvc
-          - os: ubuntu-latest
-            compiler: msvc
-          - os: macos-latest
-            compiler: msvc
-          # windows下禁用非mingw环境下的gcc/clang组合
-          - os: windows-latest
-            compiler: gcc
-          - os: windows-latest
-            compiler: clang
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install Dependencies (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        sudo apt-get update || true
-        sudo apt-get install -y build-essential cmake ninja-build python3 zip curl \
-          libx11-dev libxext-dev libxrender-dev libxcb1-dev libx11-xcb-dev \
-          libfontconfig1-dev libfreetype-dev libxkbcommon-dev || true
-        if [[ "${{ matrix.compiler }}" == "clang" ]]; then
-          sudo apt-get install -y clang || true
-        fi
-        if [[ runner.os == 'macOS' ]]; then
-          brew install cmake ninja python || true
-        fi
+      - name: Set up Ninja
+        uses: llvm/actions/setup-ninja@main
 
-    - name: Install Dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        choco install -y ninja cmake python
-        if "${{ matrix.compiler }}" == "gcc"; then
-          choco install -y mingw
-        elif "${{ matrix.compiler }}" == "clang"; then
-          choco install -y llvm
-        fi
+      - name: Set up Compiler
+        if: ${{ matrix.compiler != 'msvc' }}
+        uses: llvm/actions/setup-${{ matrix.compiler }}@main
 
-    - name: Set Up Environment Variables (Windows MinGW/LLVM)
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
-          echo "Using MinGW64 GCC"
-          echo "CMAKE_C_COMPILER=mingw32-gcc" >> $GITHUB_ENV
-          echo "CMAKE_CXX_COMPILER=mingw32-g++" >> $GITHUB_ENV
-        elif [[ "${{ matrix.compiler }}" == "clang" ]]; then
-          echo "Using LLVM Clang"
-          echo "CMAKE_C_COMPILER=clang" >> $GITHUB_ENV
-          echo "CMAKE_CXX_COMPILER=clang++" >> $GITHUB_ENV
-        fi
+      - name: Set up MSVC
+        if: ${{ matrix.compiler == 'msvc' }}
+        uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Download Qt Source
-      run: |
-        mkdir -p qt6src
-        cd qt6src
-        curl -LO https://download.qt.io/official_releases/qt/${{ env.QT_MAJOR_MINOR }}/${{ env.QT_VERSION }}/single/qt-everywhere-src-${{ env.QT_VERSION }}.tar.xz
-        tar -xf qt-everywhere-src-${{ env.QT_VERSION }}.tar.xz
+      - name: Install dependencies (Linux only)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 ninja-build
 
-    - name: Configure Qt
-      run: |
-        cd qt6src/qt-everywhere-src-${{ env.QT_VERSION }}
-        mkdir build && cd build
+      - name: Install dependencies (macOS only)
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          brew install ninja
 
-        CONFIG_FLAGS="-prefix $PWD/install -opensource -confirm-license -nomake tests -nomake examples -skip qtwebengine -shared"
+      - name: Download Qt 6.9.0 source
+        run: |
+          curl -LO https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz
+          tar -xf qt-everywhere-src-6.9.0.tar.xz
+        shell: bash
 
-        if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
-          CONFIG_FLAGS+=" -debug"
-        elif [[ "${{ matrix.build_type }}" == "Release" ]]; then
-          CONFIG_FLAGS+=" -release"
-        elif [[ "${{ matrix.build_type }}" == "DebugAndRelease" ]]; then
-          CONFIG_FLAGS+=" -debug-and-release"
-        fi
+      - name: Configure and Build Qt
+        run: |
+          cd qt-everywhere-src-6.9.0
+          mkdir build
+          cd build
 
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          ../configure.bat $CONFIG_FLAGS
-        else
-          ../configure $CONFIG_FLAGS
-        fi
+          BUILD_TYPES=""
+          if [[ "${{ matrix.build_type }}" == "DebugAndRelease" ]]; then
+            BUILD_TYPES="-debug-and-release"
+          elif [[ "${{ matrix.build_type }}" == "Debug" ]]; then
+            BUILD_TYPES="-debug"
+          else
+            BUILD_TYPES="-release"
+          fi
 
-    - name: Build
-      run: |
-        cd qt6src/qt-everywhere-src-${{ env.QT_VERSION }}/build
-        cmake --build . --parallel
+          ../configure -prefix ${{ github.workspace }}/qt-install -opensource -confirm-license -platform ninja $BUILD_TYPES
+          cmake --build . --parallel
+        shell: bash
 
-    - name: Install
-      run: |
-        cd qt6src/qt-everywhere-src-${{ env.QT_VERSION }}/build
-        cmake --install .
+      - name: Package Qt build
+        run: |
+          cd qt-everywhere-src-6.9.0
+          zip -r qt6-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}.zip build
+          echo "ARCHIVE_NAME=qt6-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}.zip" >> $GITHUB_ENV
+        shell: bash
 
-    - name: Package
-      run: |
-        cd qt6src/qt-everywhere-src-${{ env.QT_VERSION }}/build
-        ARCHIVE_NAME=Qt6.9-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-shared.zip
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          powershell Compress-Archive -Path install -DestinationPath $ARCHIVE_NAME
-        else
-          zip -r $ARCHIVE_NAME install
-        fi
-        echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: Qt6.9-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-shared
-        path: qt6src/qt-everywhere-src-${{ env.QT_VERSION }}/build/${{ env.ARCHIVE_NAME }}
+      - name: Upload Qt build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: qt6-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: qt-everywhere-src-6.9.0/${{ env.ARCHIVE_NAME }}
