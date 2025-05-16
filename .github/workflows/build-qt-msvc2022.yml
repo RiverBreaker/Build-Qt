@@ -54,13 +54,15 @@ jobs:
         shell: cmd
         run: |
           cd qt-everywhere-src-6.9.0\build
-          cmake --build . --config %BUILD_TYPE% --parallel
+          rem Ninja is single‐config; no --config needed
+          cmake --build . --parallel
 
       - name: Install
         shell: cmd
         run: |
           cd qt-everywhere-src-6.9.0\build
-          cmake --install . --config %BUILD_TYPE%
+          rem Install will put both Debug and Release libs in install/
+          cmake --install . 
 
       - name: Package
         shell: cmd
