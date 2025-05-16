@@ -24,11 +24,18 @@ jobs:
           vs-version: 'latest'
           msbuild-architecture: x64
 
-      - name: Download & extract Qt source (PowerShell)
-        shell: pwsh
+      - name: Download & extract Qt source with 7z
+        shell: bash
         run: |
-          Invoke-WebRequest https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz -OutFile qt-everywhere-src-6.9.0.tar.xz
-          tar -xf qt-everywhere-src-6.9.0.tar.xz
+          curl -LO https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz
+          7z x qt-everywhere-src-6.9.0.tar.xz    # → qt-everywhere-src-6.9.0.tar
+          7z x qt-everywhere-src-6.9.0.tar       # → 解压 tar 内容
+
+      - name: Check unzip structure
+        shell: bash
+        run: |
+          ls -l
+          ls -l qt-everywhere-src-6.9.0
 
 
 
