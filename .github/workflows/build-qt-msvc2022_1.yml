@@ -1,0 +1,102 @@
+name: Build Qt 6.9.0 (MSVC2022 + Ninja)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-qt-windows:
+    runs-on: windows-latest
+    name: Build Qt (Windows MSVC2022)
+    env:
+      QT_VERSION: 6.9.0
+      QT_FOLDER: D:\a\buildQt\Qt
+      MSVC_VERSION: msvc2022_64_RP
+      INSTALL_DIR: D:\a\buildQt\Qt\6.9.0-static\msvc2022_64_RP
+
+    steps:
+      - name: Set up Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: Install 7-Zip
+        run: choco install 7zip -y
+
+      - name: Download Qt source (qtbase/qttools/qttranslations/qtsvg)
+        run: |
+          $baseUrl = "https://download.qt.io/official_releases/qt/6.9/6.9.0/submodules"
+          $qtVersion = "${{ env.QT_VERSION }}"
+          $qtPath = "${{ env.QT_FOLDER }}\$qtVersion"
+
+          $modules = @(
+            "qtbase-everywhere-src-$qtVersion",
+            "qttools-everywhere-src-$qtVersion",
+            "qttranslations-everywhere-src-$qtVersion",
+            "qtsvg-everywhere-src-$qtVersion"
+          )
+
+          foreach ($mod in $modules) {
+            $zipName = "$mod.zip"
+            $url = "$baseUrl/$zipName"
+            Invoke-WebRequest -Uri $url -OutFile $zipName
+            Expand-Archive -Path $zipName -DestinationPath "$qtPath"
+          }
+
+      - name: Set up MSVC2022 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure and build qtbase
+        shell: cmd
+        run: |
+          set QT_VERSION=${{ env.QT_VERSION }}
+          set QT_DIR=${{ env.QT_FOLDER }}\%QT_VERSION%
+          set SRC_DIR=%QT_DIR%\qtbase-everywhere-src-%QT_VERSION%
+          set INSTALL_DIR=${{ env.INSTALL_DIR }}
+
+          set BUILD_DIR=%QT_DIR%\build-qtbase
+          if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
+
+          call %SRC_DIR%\configure.bat -static -static-runtime -release -nomake examples -prefix %INSTALL_DIR% -opensource -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -schannel -opengl desktop -platform win32-msvc
+          cmake --build . --parallel
+          cmake --install .
+
+      - name: Configure and build qttools/qttranslations/qtsvg
+        shell: cmd
+        run: |
+          set QT_VERSION=${{ env.QT_VERSION }}
+          set QT_DIR=${{ env.QT_FOLDER }}\%QT_VERSION%
+          set INSTALL_DIR=${{ env.INSTALL_DIR }}
+          set CMAKE_GENERATOR=Ninja
+
+          for %%M in (qttools qttranslations qtsvg) do (
+            set SRC_DIR=%QT_DIR%\%%M*-src-%QT_VERSION%
+            set BUILD_DIR=%QT_DIR%\build-%%M
+
+            echo Building %%M...
+            if exist "%%BUILD_DIR%%" rmdir /s /q "%%BUILD_DIR%%"
+            mkdir "%%BUILD_DIR%%"
+            cd /d "%%BUILD_DIR%%"
+
+            cmake "%%SRC_DIR%%" -G "%CMAKE_GENERATOR%" -DCMAKE_INSTALL_PREFIX=%INSTALL_DIR% -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=%INSTALL_DIR%\lib\cmake
+            cmake --build . --parallel
+            cmake --install .
+          )
+
+      - name: Copy qt.conf to installation folder
+        run: |
+          $qtConf = "[Paths]`nPrefix=.."
+          $confPath = "${{ env.INSTALL_DIR }}\bin\qt.conf"
+          New-Item -Path (Split-Path $confPath) -ItemType Directory -Force | Out-Null
+          $qtConf | Out-File -Encoding UTF8 -FilePath $confPath
+
+      - name: Compress installation directory
+        run: |
+          $OutputPath = "qt-${{ env.QT_VERSION }}-${{ env.MSVC_VERSION }}.7z"
+          & "C:\Program Files\7-Zip\7z.exe" a -t7z $OutputPath "${{ env.INSTALL_DIR }}\*"
+
+      - name: Upload Qt build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-${{ env.QT_VERSION }}-${{ env.MSVC_VERSION }}
+          path: qt-${{ env.QT_VERSION }}-${{ env.MSVC_VERSION }}.7z
