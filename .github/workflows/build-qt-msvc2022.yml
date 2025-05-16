@@ -25,11 +25,10 @@ jobs:
           msbuild-architecture: x64
 
       - name: Download & unzip Qt source
-        shell: pwsh
+        shell: bash
         run: |
-          Invoke-WebRequest https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip -OutFile qt.zip
-          Expand-Archive qt.zip -DestinationPath .
-
+          curl -LO https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip
+          unzip -q qt-everywhere-src-6.9.0.zip
 
       - name: Configure Qt
         shell: cmd
