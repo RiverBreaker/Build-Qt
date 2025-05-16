@@ -48,7 +48,7 @@ jobs:
           if "%BUILD_TYPE%"=="Debug" set BUILD_FLAGS=%BUILD_FLAGS% -debug
           if "%BUILD_TYPE%"=="Release" set BUILD_FLAGS=%BUILD_FLAGS% -release
           if "%BUILD_TYPE%"=="DebugAndRelease" set BUILD_FLAGS=%BUILD_FLAGS% -debug-and-release
-          cmd /c "configure.bat %BUILD_FLAGS%"
+          cmd /c "..\configure.bat %BUILD_FLAGS%"
 
       - name: Build
         shell: cmd
