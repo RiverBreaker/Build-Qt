@@ -28,7 +28,8 @@ jobs:
         shell: bash
         run: |
           curl -LO https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz
-          bsdtar -xf qt-everywhere-src-6.9.0.tar.xz
+          7z x qt-everywhere-src-6.9.0.tar.xz    # → qt-everywhere-src-6.9.0.tar
+          7z x qt-everywhere-src-6.9.0.tar       # → 解压 tar 内容
 
 
       - name: Configure Qt
