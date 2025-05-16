@@ -1,0 +1,76 @@
+name: Build Qt 6.9.0 (MSVC2022 x64)
+
+on:
+  workflow_dispatch:
+
+env:
+  QT_VERSION: 6.9.0
+  BUILD_TYPE: [Debug,Release,DebugAndRelease]
+
+jobs:
+  build-msvc:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [Debug,Release,DebugAndRelease]
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: 'latest'
+          msbuild-architecture: x64
+
+      - name: Download Qt source
+        run: |
+          curl -LO https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.tar.xz
+          tar xf qt-everywhere-src-6.9.0.tar.xz
+        shell: bash
+
+      - name: Configure Qt
+        run: |
+          cd qt-everywhere-src-6.9.0
+          mkdir build && cd build
+          set BUILD_FLAGS=-prefix %CD%/install -opensource -confirm-license -nomake tests -nomake examples -skip qtwebengine -shared
+          if [ "${{ matrix.build_type }}" == "Debug" ]; then set BUILD_FLAGS=%BUILD_FLAGS% -debug; fi
+          if [ "${{ matrix.build_type }}" == "Release" ]; then set BUILD_FLAGS=%BUILD_FLAGS% -release; fi
+          if [ "${{ matrix.build_type }}" == "DebugAndRelease" ]; then set BUILD_FLAGS=%BUILD_FLAGS% -debug-and-release; fi
+          cmd /c "configure.bat %BUILD_FLAGS%"
+        shell: cmd
+
+      - name: Build
+        run: |
+          cd qt-everywhere-src-6.9.0\build
+          cmake --build . --config ${{ matrix.build_type }} --parallel
+        shell: bash
+
+      - name: Install
+        run: |
+          cd qt-everywhere-src-6.9.0\build
+          cmake --install . --config ${{ matrix.build_type }}
+        shell: bash
+
+      - name: Package
+        run: |
+          cd qt-everywhere-src-6.9.0\build
+          set ARCHIVE=Qt6.9-msvc2022-x64-${{ matrix.build_type }}-shared.zip
+          powershell Compress-Archive -Path install -DestinationPath $ARCHIVE
+          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v6.9.0-${{ matrix.build_type }}-msvc2022
+          release_name: Qt 6.9.0 ${{ matrix.build_type }} (MSVC2022 x64)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.ARCHIVE }}
