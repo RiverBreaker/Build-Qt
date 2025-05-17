@@ -47,8 +47,13 @@ jobs:
           mkdir "$env:RUNNER_TEMP\\build-Release"
           mkdir "$env:RUNNER_TEMP\\build-RelWithDebInfo"
 
+      - name: List extracted files
+        shell: pwsh
+        run: |
+          dir "$env:RUNNER_TEMP\qt6_src"
 
       - name: Configure, build and install Debug
+        shell: pwsh
         working-directory: ${{ env.INSTALL_ROOT }}\..\build-Debug
         run: |
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
@@ -61,6 +66,7 @@ jobs:
           ninja && ninja install
 
       - name: Configure, build and install Release
+        shell: pwsh 
         working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
@@ -73,6 +79,7 @@ jobs:
           ninja && ninja install
 
       - name: Configure, build and install RelWithDebInfo
+        shell: pwsh
         working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
