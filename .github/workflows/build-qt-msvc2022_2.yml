@@ -56,7 +56,8 @@ jobs:
         shell: pwsh
         run: |
           # 调用 VS2022 Community 版的开发命令脚本，将 MSVC、SDK、Link 等环境变量加载进来
-          & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat' -arch=amd64
+          & "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.ps1" -arch=amd64
+          cl
 
       - name: Configure, build and install Debug
         shell: pwsh
