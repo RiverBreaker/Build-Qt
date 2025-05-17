@@ -56,12 +56,12 @@ jobs:
         shell: pwsh
         working-directory: ${{ env.INSTALL_ROOT }}\..\build-Debug
         run: |
-          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Debug" \
-            -DQT_FEATURE_webengine=OFF \
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
-            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Debug" `
+            -DQT_FEATURE_webengine=OFF `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
           ninja && ninja install
 
@@ -69,12 +69,12 @@ jobs:
         shell: pwsh 
         working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
-          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Release" \
-            -DQT_FEATURE_webengine=OFF \
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
-            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Release" `
+            -DQT_FEATURE_webengine=OFF `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
           ninja && ninja install
 
@@ -82,12 +82,12 @@ jobs:
         shell: pwsh
         working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
-          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\RelWithDebInfo" \
-            -DQT_FEATURE_webengine=OFF \
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
-            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\RelWithDebInfo" `
+            -DQT_FEATURE_webengine=OFF `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
           ninja && ninja install
 
