@@ -43,12 +43,14 @@ jobs:
         run: |
           mkdir "$env:INSTALL_ROOT"
           mkdir "$env:ARTIFACTS_DIR"
+          mkdir "$env:RUNNER_TEMP\\build-Debug"
+          mkdir "$env:RUNNER_TEMP\\build-Release"
+          mkdir "$env:RUNNER_TEMP\\build-RelWithDebInfo"
+
 
       - name: Configure, build and install Debug
         working-directory: ${{ env.INSTALL_ROOT }}\..\build-Debug
         run: |
-          md ${{ env.RUNNER_TEMP }}\\build-Debug
-          cd ${{ env.RUNNER_TEMP }}\\build-Debug
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Debug" \
@@ -61,8 +63,6 @@ jobs:
       - name: Configure, build and install Release
         working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
-          md ${{ env.RUNNER_TEMP }}\\build-Release
-          cd ${{ env.RUNNER_TEMP }}\\build-Release
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Release" \
@@ -75,8 +75,6 @@ jobs:
       - name: Configure, build and install RelWithDebInfo
         working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
-          md ${{ env.RUNNER_TEMP }}\\build-RelWithDebInfo
-          cd ${{ env.RUNNER_TEMP }}\\build-RelWithDebInfo
           cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\RelWithDebInfo" \
