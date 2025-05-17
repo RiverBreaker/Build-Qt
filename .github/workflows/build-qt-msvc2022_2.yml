@@ -16,7 +16,7 @@ jobs:
 
       - name: Install build tools via Chocolatey
         run: |
-          choco install -y cmake ninja 7zip openssl libclang gperf
+          choco install -y cmake ninja 7zip openssl llvm gperf
 
       - name: Prepare environment paths
         run: |
