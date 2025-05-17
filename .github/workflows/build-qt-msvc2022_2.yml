@@ -52,27 +52,11 @@ jobs:
         run: |
           dir "$env:RUNNER_TEMP\qt6_src"
 
-      - name: Check VS2022 Path
-        shell: pwsh
-        run: |
-          $vsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022"
-          if (-not (Test-Path "$vsPath")) {
-            Write-Error "Visual Studio 2022 not found!"
-          }
-          # 列出所有可能的版本
-          Get-ChildItem "$vsPath"
-
-      - name: Setup VS2022 Dev Shell
-        shell: pwsh
-        run: |
-          # 动态查找 vcvars64.ps1 路径
-          $vcvarsPath = Get-ChildItem -Path "${env:ProgramFiles}\Microsoft Visual Studio\2022" -Filter "vcvars64.ps1" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $vcvarsPath) {
-            Write-Error "vcvars64.ps1 not found!"
-            exit 1
-          }
-          & $vcvarsPath -arch=amd64
-          cl
+      - name: Setup MSVC 2022
+        uses: microsoft/setup-msbuild@v1
+        with:
+          vs-version: 17.0  # 对应 VS2022
+          architecture: x64
 
       - name: Configure, build and install Debug
         shell: pwsh
