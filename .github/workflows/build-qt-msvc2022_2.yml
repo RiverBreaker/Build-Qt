@@ -40,12 +40,13 @@ jobs:
 
 
       - name: Prepare directories
+        shell: pwsh
         run: |
-          mkdir "$env:INSTALL_ROOT"
-          mkdir "$env:ARTIFACTS_DIR"
-          mkdir "$env:RUNNER_TEMP\\build-Debug"
-          mkdir "$env:RUNNER_TEMP\\build-Release"
-          mkdir "$env:RUNNER_TEMP\\build-RelWithDebInfo"
+          New-Item -Path "$env:INSTALL_ROOT" -ItemType Directory -Force
+          New-Item -Path "$env:ARTIFACTS_DIR" -ItemType Directory -Force
+          New-Item -Path "$env:RUNNER_TEMP\build-Debug" -ItemType Directory -Force
+          New-Item -Path "$env:RUNNER_TEMP\build-Release" -ItemType Directory -Force
+          New-Item -Path "$env:RUNNER_TEMP\build-RelWithDebInfo" -ItemType Directory -Force
 
       - name: List extracted files
         shell: pwsh
@@ -57,11 +58,30 @@ jobs:
         with:
           vs-version: 17.0  # 对应 VS2022
           msbuild-architecture: x64  # 修正参数名
+      
+      - name: Load MSVC Environment
+        shell: pwsh
+        run: |
+          # 调用 vcvars64.bat 并捕获环境变量
+          cmd /c "call `"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat`" amd64 && set > env.txt"
+          
+          # 加载环境变量到当前会话
+          Get-Content env.txt | ForEach-Object {
+            if ($_ -match "^(.*?)=(.*)$") {
+              $name = $Matches[1]
+              $value = $Matches[2]
+              Set-Item -Path "env:$name" -Value $value
+            }
+          }
+          Remove-Item env.txt
+          
+          # 验证编译器
+          Write-Host "cl.exe path: $(Get-Command cl | Select-Object -ExpandProperty Source)"
 
       - name: Configure, build and install Debug
         shell: pwsh
+        working-directory: ${{ env.RUNNER_TEMP }}\build-Debug
         run: |
-          Set-Location "$env:RUNNER_TEMP\build-Debug"
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Debug"
           cmake "$env:src" `
@@ -78,7 +98,7 @@ jobs:
 
       - name: Configure, build and install Release
         shell: pwsh 
-        working-directory: ${{ env.RUNNER_TEMP }}\\build-Release
+        working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Release"
@@ -96,7 +116,7 @@ jobs:
 
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}\\build-RelWithDebInfo
+        working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\RelWithDebInfo"
