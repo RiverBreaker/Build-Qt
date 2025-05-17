@@ -1,0 +1,119 @@
+name: Build Qt 6.9 (Windows VS2022)
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  build-qt:
+    name: Build Qt 6.9 for Windows (VS2022)
+    runs-on: windows-latest
+    env:
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip
+      INSTALL_ROOT: ${{ runner.temp }}\qt-6.9
+      ARTIFACTS_DIR: ${{ runner.temp }}\artifacts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools via Chocolatey
+        run: |
+          choco install -y cmake ninja 7zip openssl libclang gperf
+
+      - name: Download Qt 6.9.0 source
+        run: |
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile qt6.zip
+
+      - name: Extract Qt source
+        run: |
+          7z x qt6.zip -y -oqt6_src
+
+      - name: Prepare directories
+        run: |
+          mkdir "$env:INSTALL_ROOT"
+          mkdir "$env:ARTIFACTS_DIR"
+
+      - name: Configure, build and install Debug
+        run: |
+          md build-Debug
+          cd build-Debug
+          cmake "${{ runner.temp }}\qt6_src\qt-everywhere-src-6.9.0" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_INSTALL_PREFIX="${{ env:INSTALL_ROOT }}\Debug" \
+            -DQT_FEATURE_webengine=OFF \
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+          ninja
+          ninja install
+
+      - name: Configure, build and install Release
+        run: |
+          md build-Release
+          cd build-Release
+          cmake "${{ runner.temp }}\qt6_src\qt-everywhere-src-6.9.0" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${{ env:INSTALL_ROOT }}\Release" \
+            -DQT_FEATURE_webengine=OFF \
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+          ninja
+          ninja install
+
+      - name: Configure, build and install RelWithDebInfo (Debug-Release)
+        run: |
+          md build-RelWithDebInfo
+          cd build-RelWithDebInfo
+          cmake "${{ runner.temp }}\qt6_src\qt-everywhere-src-6.9.0" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX="${{ env:INSTALL_ROOT }}\RelWithDebInfo" \
+            -DQT_FEATURE_webengine=OFF \
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
+            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+          ninja
+          ninja install
+
+      - name: Package all builds
+        run: |
+          cd "$env:INSTALL_ROOT"
+          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-Debug.7z" "Debug"
+          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-Release.7z" "Release"
+          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z" "RelWithDebInfo"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Qt 6.9.0 Windows VS2022 Builds
+          draft: false
+          prerelease: false
+
+      - name: Upload Debug artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env:ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-Debug.7z
+          asset_name: qt-6.9.0-win-msvc2022-Debug.7z
+          asset_content_type: application/x-7z-compressed
+
+      - name: Upload Release artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env:ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-Release.7z
+          asset_name: qt-6.9.0-win-msvc2022-Release.7z
+          asset_content_type: application/x-7z-compressed
+
+      - name: Upload RelWithDebInfo artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env:ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
+          asset_name: qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
+          asset_content_type: application/x-7z-compressed
