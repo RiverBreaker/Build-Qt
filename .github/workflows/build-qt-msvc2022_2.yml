@@ -52,43 +52,64 @@ jobs:
         run: |
           dir "$env:RUNNER_TEMP\qt6_src"
 
+      - name: Setup VS2022 Dev Shell
+        shell: pwsh
+        run: |
+          # 调用 VS2022 Community 版的开发命令脚本，将 MSVC、SDK、Link 等环境变量加载进来
+          & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat' -arch=amd64
+
       - name: Configure, build and install Debug
         shell: pwsh
-        working-directory: ${{ env.INSTALL_ROOT }}\..\build-Debug
+        working-directory: ${{ env.RUNNER_TEMP }}\build-Debug
         run: |
-          cmake "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+          $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
+          $env:install = "$env:INSTALL_ROOT\Debug"
+          cmake "$env:src" `
+            -G "Ninja Multi-Config" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Debug" `
+            -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
+            -Wno-dev
           ninja && ninja install
 
       - name: Configure, build and install Release
         shell: pwsh 
         working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
-          cmake "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+          $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
+          $env:install = "$env:INSTALL_ROOT\Release"
+          cmake "$env:src" `
+            -G "Ninja Multi-Config" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Release" `
+            -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
+            -Wno-dev
           ninja && ninja install
 
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
         working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
-          cmake "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
+          $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
+          $env:install = "$env:INSTALL_ROOT\RelWithDebInfo"
+          cmake "$env:src" `
+            -G "Ninja Multi-Config" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\RelWithDebInfo" `
+            -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
+            -Wno-dev
           ninja && ninja install
 
       - name: Package all builds
