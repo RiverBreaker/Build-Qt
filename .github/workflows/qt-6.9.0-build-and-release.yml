@@ -1,9 +1,6 @@
-name: Build and Release Qt 6.9 (Windows VS2022)
+name: Build Qt 6.9 (Windows VS2022)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch: 
 
 jobs:
