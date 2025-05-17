@@ -60,8 +60,8 @@ jobs:
 
       - name: Configure, build and install Debug
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}\\build-Debug
         run: |
+          Set-Location "$env:RUNNER_TEMP\build-Debug"
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Debug"
           cmake "$env:src" `
