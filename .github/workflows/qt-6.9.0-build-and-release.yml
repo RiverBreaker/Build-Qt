@@ -1,119 +1,102 @@
-name: Qt 6.9.0 Build & Release
+name: Build and Release Qt 6.9 (Windows VS2022)
 
 on:
-  workflow_dispatch:       # 手动触发
-
-# 顶层只能定义常量，不能在同一个块里相互引用
-env:
-  QT_VERSION: 6.9.0
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: 
 
 jobs:
-  build:
-    name: Build Qt on Windows (${{ matrix.config }})
+  build-qt:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        config: [Debug, Release, RelWithDebInfo]
-
-    # 如果你还想在 job 级别生成 QT_SRC_DIR，也可以：
     env:
-      QT_SRC_DIR: qt-everywhere-src-${{ env.QT_VERSION }}
-
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip
+      INSTALL_ROOT: ${{ runner.temp }}\qt-6.9
+      ARTIFACTS_DIR: ${{ runner.temp }}\artifacts
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Install build tools
         run: |
-          choco install -y cmake ninja 7zip openssl gperf
+          choco install -y cmake ninja 7zip openssl libclang gperf
+          # Ensure Visual Studio 2022 exists
+          echo "Using VS2022"
 
-      - name: Download Qt Source via AQT
+      - name: Download and extract Qt source
         run: |
-          pip install --upgrade pip
-          pip install aqtinstall
-          aqt install-qt src windows ${{ env.QT_VERSION }}
+          powershell -Command "Invoke-WebRequest $env:QT_SOURCE_URL -OutFile qt6.zip"
+          7z x qt6.zip -y -oqt6_src
 
-      - name: Setup MSVC 2022 Environment
-        uses: microsoft/setup-msbuild@v1
-        with:
-          vc-version: '17.7'
-
-      - name: Set OpenSSL Root Dir
-        run: echo "OPENSSL_ROOT_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
-
-      - name: Configure & Build ${{ matrix.config }}
-        # 直接引用 job env 里的 QT_SRC_DIR
-        working-directory: ${{ env.QT_SRC_DIR }}
+      - name: Create artifact directory
         run: |
-          cmake -B build-${{ matrix.config }} -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
-            -DFEATURE_webengine=OFF \
-            -DFEATURE_sql=OFF \
-            -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT_DIR%
-          cmake --build build-${{ matrix.config }} --parallel
+          mkdir "$ARTIFACTS_DIR"
 
-      - name: Package ${{ matrix.config }}
+      # Define build types
+      - name: Build configurations
         run: |
-          7z a qt-${{ env.QT_VERSION }}-${{ matrix.config }}-win64.7z \
-            ${{ env.QT_SRC_DIR }}/build-${{ matrix.config }}/install
+          pushd qt6_src\qt-everywhere-src-6.9.0
+          for %%C in (Debug Release "DebugAndRelease") do (
+            echo Building %%C...
+            set BUILD_DIR=..\build-%%C
+            mkdir "%%BUILD_DIR%"
+            cd "%%BUILD_DIR%"
+            set CMKIT=
+            if "%%C"=="DebugAndRelease" (
+              set CMAKE_BUILD_TYPE=RelWithDebInfo
+            ) else (
+              set CMAKE_BUILD_TYPE=%%C
+            )
+            cmake ..\qt-everywhere-src-6.9.0 \
+              -G Ninja \
+              -DCMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% \
+              -DCMAKE_INSTALL_PREFIX=%INSTALL_ROOT%\qt-%C% \
+              -DQT_FEATURE_webengine=OFF \
+              -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" \
+              -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" \
+              -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+            ninja
+            ninja install
+            popd
+          )
 
-      - name: Upload artifact for ${{ matrix.config }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: qt-${{ env.QT_VERSION }}-${{ matrix.config }}
-          path: qt-${{ env.QT_VERSION }}-${{ matrix.config }}-win64.7z
+      - name: Package builds
+        run: |
+          pushd $INSTALL_ROOT
+          for %%D in (Debug Release DebugAndRelease) do (
+            7z a -t7z "$ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-%%D.7z" "qt-%%D"
+          )
+          popd
 
-  release:
-    name: Create GitHub Release & Upload Assets
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Qt ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          release_name: Qt 6.9.0 Windows Builds
           draft: false
           prerelease: false
 
-      - name: Download Debug artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: qt-${{ env.QT_VERSION }}-Debug
-
-      - name: Upload Debug ZIP to Release
+      - name: Upload build artifacts
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: qt-${{ env.QT_VERSION }}-Debug-win64.7z
-          asset_name: qt-${{ env.QT_VERSION }}-Debug-win64.7z
-          content_type: application/x-7z-compressed
+          asset_path: ${{ env.ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-Debug.7z
+          asset_name: qt-6.9.0-win-msvc2022-Debug.7z
+          asset_content_type: application/x-7z-compressed
 
-      # 同理处理 Release 和 RelWithDebInfo
-      - name: Download Release artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: qt-${{ env.QT_VERSION }}-Release
-
-      - name: Upload Release ZIP to Release
+      - name: Upload Release artifact: Release
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: qt-${{ env.QT_VERSION }}-Release-win64.7z
-          asset_name: qt-${{ env.QT_VERSION }}-Release-win64.7z
-          content_type: application/x-7z-compressed
+          asset_path: ${{ env.ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-Release.7z
+          asset_name: qt-6.9.0-win-msvc2022-Release.7z
+          asset_content_type: application/x-7z-compressed
 
-      - name: Download RelWithDebInfo artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: qt-${{ env.QT_VERSION }}-RelWithDebInfo
-
-      - name: Upload RelWithDebInfo ZIP to Release
+      - name: Upload Release artifact: DebugAndRelease
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: qt-${{ env.QT_VERSION }}-RelWithDebInfo-win64.7z
-          asset_name: qt-${{ env.QT_VERSION }}-RelWithDebInfo-win64.7z
-          content_type: application/x-7z-compressed
+          asset_path: ${{ env.ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-DebugAndRelease.7z
+          asset_name: qt-6.9.0-win-msvc2022-DebugAndRelease.7z
+          asset_content_type: application/x-7z-compressed
