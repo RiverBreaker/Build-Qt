@@ -56,11 +56,11 @@ jobs:
         uses: microsoft/setup-msbuild@v1
         with:
           vs-version: 17.0  # 对应 VS2022
-          architecture: x64
+          msbuild-architecture: x64  # 修正参数名
 
       - name: Configure, build and install Debug
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}\build-Debug
+        working-directory: ${{ env.RUNNER_TEMP }}/build-Debug
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Debug"
@@ -70,7 +70,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
@@ -78,7 +78,7 @@ jobs:
 
       - name: Configure, build and install Release
         shell: pwsh 
-        working-directory: ${{ env.RUNNER_TEMP }}\build-Release
+        working-directory: ${{ env.RUNNER_TEMP }}/build-Release
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Release"
@@ -88,7 +88,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
@@ -96,7 +96,7 @@ jobs:
 
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
+        working-directory: ${{ env.RUNNER_TEMP }}/build-RelWithDebInfo
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\RelWithDebInfo"
@@ -106,7 +106,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
             -DCMAKE_INSTALL_PREFIX="$env:install" `
             -DQT_FEATURE_webengine=OFF `
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
+            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
