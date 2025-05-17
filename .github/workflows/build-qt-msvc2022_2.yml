@@ -21,29 +21,31 @@ jobs:
       - name: Prepare environment paths
         shell: pwsh
         run: |
-          "INSTALL_ROOT=$env:RUNNER_TEMP\qt-6.9" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "ARTIFACTS_DIR=$env:RUNNER_TEMP\artifacts" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "INSTALL_ROOT=$env:RUNNER_TEMP\\qt-6.9" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ARTIFACTS_DIR=$env:RUNNER_TEMP\\artifacts" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
 
       - name: Download Qt 6.9.0 source
         shell: pwsh
         run: |
-          $zipPath = Join-Path $env:RUNNER_TEMP "qt6.zip"
+          $zipPath = Join-Path $env:TEMP "qt6.zip"
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zipPath
           "QT_ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
 
       - name: Extract Qt source
         shell: pwsh
         run: |
-          7z x "$env:QT_ZIP_PATH" -y -o"$env:RUNNER_TEMP\qt6_src"
+          7z x "$env:QT_ZIP_PATH" -y -o"${env:RUNNER_TEMP}\\qt6_src"
+
 
       - name: Prepare directories
-        shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path "$env:INSTALL_ROOT" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:ARTIFACTS_DIR" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\build-Debug" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\build-Release" -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\build-RelWithDebInfo" -Force | Out-Null
+          mkdir "$env:INSTALL_ROOT"
+          mkdir "$env:ARTIFACTS_DIR"
+          mkdir "$env:RUNNER_TEMP\\build-Debug"
+          mkdir "$env:RUNNER_TEMP\\build-Release"
+          mkdir "$env:RUNNER_TEMP\\build-RelWithDebInfo"
 
       - name: List extracted files
         shell: pwsh
@@ -52,64 +54,53 @@ jobs:
 
       - name: Configure, build and install Debug
         shell: pwsh
-        working-directory: $env:RUNNER_TEMP\build-Debug
+        working-directory: ${{ env.INSTALL_ROOT }}\..\build-Debug
         run: |
-          $src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
-          $install = "$env:INSTALL_ROOT\Debug"
-          cmake $src -G Ninja `
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_INSTALL_PREFIX=$install `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Debug" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
-          ninja
-          ninja install
+          ninja && ninja install
 
       - name: Configure, build and install Release
-        shell: pwsh
-        working-directory: $env:RUNNER_TEMP\build-Release
+        shell: pwsh 
+        working-directory: ${{ env.RUNNER_TEMP }}\build-Release
         run: |
-          $src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
-          $install = "$env:INSTALL_ROOT\Release"
-          cmake $src -G Ninja `
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_INSTALL_PREFIX=$install `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\Release" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
-          ninja
-          ninja install
+          ninja && ninja install
 
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
-        working-directory: $env:RUNNER_TEMP\build-RelWithDebInfo
+        working-directory: ${{ env.RUNNER_TEMP }}\build-RelWithDebInfo
         run: |
-          $src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
-          $install = "$env:INSTALL_ROOT\RelWithDebInfo"
-          cmake $src -G Ninja `
+          cmake "$RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0" -G Ninja `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-            -DCMAKE_INSTALL_PREFIX=$install `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\\RelWithDebInfo" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL-Win64" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
-          ninja
-          ninja install
+          ninja && ninja install
 
       - name: Package all builds
-        shell: pwsh
         run: |
-          Push-Location $env:INSTALL_ROOT
-          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-Debug.7z" "Debug"
-          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-Release.7z" "Release"
-          7z a "$env:ARTIFACTS_DIR\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z" "RelWithDebInfo"
-          Pop-Location
+          cd "$env:INSTALL_ROOT"
+          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Debug.7z" "Debug"
+          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Release.7z" "Release"
+          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z" "RelWithDebInfo"
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
         id: create_release
+        uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref }}
           release_name: Qt 6.9.0 Windows VS2022 Builds
@@ -120,4 +111,22 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ${{ env.ARTIFACTS_DIR }}\qt-6.9.0-win-msvc2022-Debug.7z
+          asset_path: ${{ env.ARTIFACTS_DIR }}\\qt-6.9.0-win-msvc2022-Debug.7z
+          asset_name: qt-6.9.0-win-msvc2022-Debug.7z
+          asset_content_type: application/x-7z-compressed
+
+      - name: Upload Release artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ARTIFACTS_DIR }}\\qt-6.9.0-win-msvc2022-Release.7z
+          asset_name: qt-6.9.0-win-msvc2022-Release.7z
+          asset_content_type: application/x-7z-compressed
+
+      - name: Upload RelWithDebInfo artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ARTIFACTS_DIR }}\\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
+          asset_name: qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
+          asset_content_type: application/x-7z-compressed
