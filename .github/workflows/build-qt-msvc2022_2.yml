@@ -60,7 +60,7 @@ jobs:
 
       - name: Configure, build and install Debug
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}/build-Debug
+        working-directory: ${{ env.RUNNER_TEMP }}\\build-Debug
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Debug"
@@ -78,7 +78,7 @@ jobs:
 
       - name: Configure, build and install Release
         shell: pwsh 
-        working-directory: ${{ env.RUNNER_TEMP }}/build-Release
+        working-directory: ${{ env.RUNNER_TEMP }}\\build-Release
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\Release"
@@ -96,7 +96,7 @@ jobs:
 
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
-        working-directory: ${{ env.RUNNER_TEMP }}/build-RelWithDebInfo
+        working-directory: ${{ env.RUNNER_TEMP }}\\build-RelWithDebInfo
         run: |
           $env:src = "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0"
           $env:install = "$env:INSTALL_ROOT\RelWithDebInfo"
