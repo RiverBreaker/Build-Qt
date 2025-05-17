@@ -1,0 +1,117 @@
+# 文件名：.github/workflows/qt-6.9.0-build-and-release.yml
+name: Qt 6.9.0 Build & Release
+
+# 建议在打 Tag（vX.Y.Z）时和手动触发时运行
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  QT_VERSION: 6.9.0
+  QT_SRC_DIR: qt-everywhere-src-${{ env.QT_VERSION }}
+
+jobs:
+  build:
+    name: Build Qt on Windows ${{ matrix.config }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          choco install -y cmake ninja 7zip openssl gperf
+
+      - name: Download Qt Source via AQT
+        run: |
+          pip install --upgrade pip
+          pip install aqtinstall
+          aqt install-qt src windows ${{ env.QT_VERSION }}
+
+      - name: Setup MSVC 2022 Environment
+        uses: microsoft/setup-msbuild@v1
+        with:
+          vc-version: '17.7'
+
+      - name: Set OpenSSL Root Dir
+        run: echo "OPENSSL_ROOT_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
+
+      - name: Configure & Build (${{ matrix.config }})
+        working-directory: ${{ env.QT_SRC_DIR }}
+        run: |
+          cmake -B build-${{ matrix.config }} -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
+            -DFEATURE_webengine=OFF \
+            -DFEATURE_sql=OFF \
+            -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT_DIR%
+          cmake --build build-${{ matrix.config }} --parallel
+
+      - name: Package ${{ matrix.config }} build
+        run: |
+          7z a qt-${{ env.QT_VERSION }}-${{ matrix.config }}-win64.7z \
+            ${{ env.QT_SRC_DIR }}/build-${{ matrix.config }}/install
+
+      - name: Upload artifact for ${{ matrix.config }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: qt-${{ matrix.QT_VERSION }}-${{ matrix.config }}
+          path: qt-${{ env.QT_VERSION }}-${{ matrix.config }}-win64.7z
+
+  release:
+    name: Create GitHub Release & Upload Assets
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}        # e.g. v6.9.0
+          release_name: Qt ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      # 依次下载三个配置的 artifact 并上传为 Release Asset
+      - name: Download Debug artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: qt-${{ env.QT_VERSION }}-Debug
+
+      - name: Upload Debug ZIP to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: qt-${{ env.QT_VERSION }}-Debug-win64.7z
+          asset_name: qt-${{ env.QT_VERSION }}-Debug-win64.7z
+          content_type: application/x-7z-compressed
+
+      - name: Download Release artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: qt-${{ env.QT_VERSION }}-Release
+
+      - name: Upload Release ZIP to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: qt-${{ env.QT_VERSION }}-Release-win64.7z
+          asset_name: qt-${{ env.QT_VERSION }}-Release-win64.7z
+          content_type: application/x-7z-compressed
+
+      - name: Download RelWithDebInfo artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: qt-${{ env.QT_VERSION }}-RelWithDebInfo
+
+      - name: Upload RelWithDebInfo ZIP to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: qt-${{ env.QT_VERSION }}-RelWithDebInfo-win64.7z
+          asset_name: qt-${{ env.QT_VERSION }}-RelWithDebInfo-win64.7z
+          content_type: application/x-7z-compressed
