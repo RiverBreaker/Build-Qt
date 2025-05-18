@@ -70,6 +70,7 @@ jobs:
           Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
           New-Item -ItemType Directory $buildDir | Out-Null
           Set-Location $buildDir
+          (Get-Location).path
           
           cmake "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0" `
             -G "Ninja" `
