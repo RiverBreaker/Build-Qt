@@ -80,17 +80,15 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Debug"
           cmake $src `
-            -G Ninja `
-            -A x64 `
-            -DCMAKE_BUILD_TYPE=Debug `
+            -G "Ninja Multi-Config" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
-          ninja && ninja install
-
+          cmake --build . --config Debug --parallel --target install
+      
       - name: Configure, build and install Release
         shell: pwsh
         run: |
@@ -98,17 +96,15 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Release"
           cmake $src `
-            -G Ninja `
-            -A x64 `
-            -DCMAKE_BUILD_TYPE=Release `
+            -G "Ninja Multi-Config" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
-          ninja && ninja install
-
+          cmake --build . --config Release --parallel --target install
+      
       - name: Configure, build and install RelWithDebInfo
         shell: pwsh
         run: |
@@ -116,16 +112,15 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\RelWithDebInfo"
           cmake $src `
-            -G Ninja `
-            -A x64 `
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -G "Ninja Multi-Config" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
-          ninja && ninja install
+          cmake --build . --config RelWithDebInfo --parallel --target install
+
 
       - name: Package all builds
         shell: pwsh
