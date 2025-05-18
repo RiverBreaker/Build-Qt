@@ -54,24 +54,21 @@ jobs:
       - name: 自动加载 MSVC 2022 编译环境
         shell: pwsh
         run: |
-          # 第一步：查找 Visual Studio 安装路径
+          # 查找 VS2022 安装路径
           $vsPath = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * `
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          Write-Host "使用的 Visual Studio 安装路径: $vsPath"
-      
-          # 第二步：运行 vcvars64.bat，导出环境变量到临时文件
+            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Write-Host "VS install path: $vsPath"
+          
+          # 运行 vcvars64.bat 并导出环境变量
           $vcvars = Join-Path $vsPath 'VC\Auxiliary\Build\vcvars64.bat'
           cmd.exe /c "call `"$vcvars`" && set > %TEMP%\vsvars.txt"
-      
-          # 第三步：导入环境变量到当前 PowerShell 会话
+        
+          # 将所有环境变量写回 PowerShell 进程环境
           Get-Content "$Env:TEMP\vsvars.txt" | ForEach-Object {
             if ($_ -match '^(.*?)=(.*)$') {
-              [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
             }
           }
-          
 
       - name: Configure, build and install Debug
         shell: pwsh
