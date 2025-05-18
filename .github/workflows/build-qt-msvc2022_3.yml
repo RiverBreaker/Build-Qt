@@ -55,7 +55,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Loading MSVC 2022 x64 environment..."
-          cmd /c "call `"%ProgramFiles(x86)%\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat`" amd64 && set > env.txt"
+          cmd /c "call `"%ProgramFiles(x86)%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat`" amd64 && set > env.txt"
           Get-Content env.txt | ForEach-Object {
             if ($_ -match '^(.*?)=(.*)$') {
               Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
