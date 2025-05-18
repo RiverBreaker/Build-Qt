@@ -71,7 +71,7 @@ jobs:
               [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
             }
           }
-          cl.exe /? 
+          
 
       - name: Configure, build and install Debug
         shell: pwsh
