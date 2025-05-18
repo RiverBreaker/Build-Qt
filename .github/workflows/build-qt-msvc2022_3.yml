@@ -77,7 +77,8 @@ jobs:
             -Wno-dev
 
           # Build & Install
-          cmake --build . --parallel --target install
+          cmake --build . --parallel  
+          ninja install
 
           # Package
           New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
