@@ -38,22 +38,25 @@ jobs:
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
-      - name: Setup MSVC environment
-        shell: pwsh
-        run: |
-          $vs = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          cmd /c "call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" amd64 && set > %TEMP%\vsenv.txt"
-          Get-Content $env:TEMP/vsenv.txt | ForEach-Object {
-            if ($_ -match '^(.*?)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] }
-          }
-
       - name: Configure & build ${{ matrix.config }}
         shell: pwsh
         env:
           CONFIG: ${{ matrix.config }}
         run: |
+          # 1. 查找 Visual Studio 安装路径
+          $vsRoot = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          # 2. 加载 MSVC 环境
+          $vcvarsPath = Join-Path $vsRoot "VC\Auxiliary\Build\vcvars64.bat"
+          cmd /c "call `"$vcvarsPath`" amd64 && set > %TEMP%\vsvars.txt"
+          Get-Content "$env:TEMP\vsvars.txt" | ForEach-Object {
+            if ($_ -match '^(.*?)=(.*)$') {
+              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
+            }
+          }
+
           # 安装和打包目录
           $installRoot  = "$env:RUNNER_TEMP\qt-6.9\$env:CONFIG"
           $artifactsDir = "$env:RUNNER_TEMP\artifacts"
