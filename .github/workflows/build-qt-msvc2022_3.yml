@@ -71,8 +71,7 @@ jobs:
               [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
             }
           }
-          Remove-Item env.txt
-          Write-Host "cl.exe path: $(Get-Command cl | Select-Object -ExpandProperty Source)"
+          cl.exe /? 
 
       - name: Configure, build and install Debug
         shell: pwsh
