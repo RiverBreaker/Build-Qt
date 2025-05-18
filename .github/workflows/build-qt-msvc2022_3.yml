@@ -104,7 +104,7 @@ jobs:
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe"
+            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
           cmake --build . --config Debug --parallel --target install
 
