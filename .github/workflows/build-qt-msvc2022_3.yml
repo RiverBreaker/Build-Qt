@@ -80,7 +80,7 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Debug"
           cmake $src `
-            -G "Ninja Multi-Config" `
+            -G Ninja `
             -A x64 `
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_INSTALL_PREFIX=$install `
@@ -98,7 +98,7 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Release"
           cmake $src `
-            -G "Ninja Multi-Config" `
+            -G Ninja `
             -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX=$install `
@@ -116,7 +116,7 @@ jobs:
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\RelWithDebInfo"
           cmake $src `
-            -G "Ninja Multi-Config" `
+            -G Ninja `
             -A x64 `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
             -DCMAKE_INSTALL_PREFIX=$install `
