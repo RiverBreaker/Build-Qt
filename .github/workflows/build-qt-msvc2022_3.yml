@@ -21,9 +21,13 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y cmake ninja 7zip openssl llvm gperf `
+          choco install -y cmake ninja 7zip openssl llvm gperf protobuf flex bison perl python3 `
             --no-progress `
             --limit-output
+
+          # 2) Python-side 库
+          python -m pip install --upgrade pip
+          python -m pip install html5lib
 
       - name: Download & extract Qt
         shell: pwsh
@@ -76,10 +80,11 @@ jobs:
             -G "Ninja" `
             -DCMAKE_BUILD_TYPE=${{ matrix.config }} `
             -DCMAKE_INSTALL_PREFIX=$installRoot `
-            -DQT_FEATURE_webengine=OFF `
+            -DQT_FEATURE_webengine=ON `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
+            -DProtobuf_PROTOC_EXECUTABLE="C:/ProgramData/chocolatey/bin/protoc.exe" `
             -Wno-dev
 
           # Build & Install
@@ -88,7 +93,7 @@ jobs:
 
           # Package
           New-Item -ItemType Directory -Path $artifactsDir -Force | Out-Null
-          7z a "$artifactsDir/qt-6.9.0-win-msvc2022-$env:CONFIG.7z" $installRoot
+          7z a "$artifactsDir/qt-6.9.0-win-msvc2022-$env:CONFIG.7z" $installRoot -mmt=on
 
   release:
     needs: build-qt
