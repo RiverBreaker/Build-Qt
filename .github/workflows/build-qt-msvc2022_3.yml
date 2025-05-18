@@ -51,14 +51,24 @@ jobs:
         run: |
           dir "$env:RUNNER_TEMP\\qt6_src"
 
-      - name: Load MSVC 2022 Environment
+      - name: 自动加载 MSVC 2022 编译环境
         shell: pwsh
         run: |
-          Write-Host "Loading MSVC 2022 x64 environment..."
-          cmd /c "call `"%ProgramFiles(x86)%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat`" amd64 && set > env.txt"
-          Get-Content env.txt | ForEach-Object {
+          # 第一步：查找 Visual Studio 安装路径
+          $vsPath = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          Write-Host "使用的 Visual Studio 安装路径: $vsPath"
+      
+          # 第二步：运行 vcvars64.bat，导出环境变量到临时文件
+          $vcvars = Join-Path $vsPath 'VC\Auxiliary\Build\vcvars64.bat'
+          cmd.exe /c "call `"$vcvars`" && set > %TEMP%\vsvars.txt"
+      
+          # 第三步：导入环境变量到当前 PowerShell 会话
+          Get-Content "$Env:TEMP\vsvars.txt" | ForEach-Object {
             if ($_ -match '^(.*?)=(.*)$') {
-              Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
+              [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
             }
           }
           Remove-Item env.txt
