@@ -73,9 +73,16 @@ jobs:
       - name: Configure, build and install Debug
         shell: pwsh
         run: |
+          # 查找 VS 路径
+          $vsPath = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+                        -latest -products * `
+                        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                        -property installationPath
           Set-Location "$env:RUNNER_TEMP\\build-Debug"
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Debug"
+          # 在同一个会话里执行 vcvars64.bat，然后紧接着调用 cmake、build
+          & "$vsPath\VC\Auxiliary\Build\vcvars64.bat" amd64  
           cmake $src `
             -G "Ninja Multi-Config" `
             -DCMAKE_C_COMPILER="cl.exe" `
