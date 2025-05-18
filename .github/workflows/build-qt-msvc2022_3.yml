@@ -73,20 +73,25 @@ jobs:
       - name: Configure, build and install Debug
         shell: pwsh
         run: |
-          # 查找 VS 路径
-          $vsPath = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-                        -latest -products * `
-                        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-                        -property installationPath
+          # 1. 先用 vswhere 找到 VS 安装根目录
+          $vsRoot = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+      
+          # 2. 在 VC\Tools\MSVC 下找最新的子目录
+          $msvcBase = Join-Path $vsRoot 'VC\Tools\MSVC'
+          $versionDir = Get-ChildItem $msvcBase | Sort-Object Name -Descending | Select-Object -First 1
+      
+          # 3. 拼出 cl.exe 的完整路径
+          $clPath = Join-Path $versionDir.FullName 'bin\Hostx64\x64\cl.exe'
+          Write-Host "使用编译器： $clPath"
           Set-Location "$env:RUNNER_TEMP\\build-Debug"
           $src     = "$env:RUNNER_TEMP\\qt6_src\\qt-everywhere-src-6.9.0"
           $install = "$env:INSTALL_ROOT\\Debug"
-          # 在同一个会话里执行 vcvars64.bat，然后紧接着调用 cmake、build
-          & "$vsPath\VC\Auxiliary\Build\vcvars64.bat" amd64  
           cmake $src `
             -G "Ninja Multi-Config" `
-            -DCMAKE_C_COMPILER="cl.exe" `
-            -DCMAKE_CXX_COMPILER="cl.exe" `
+            -DCMAKE_C_COMPILER="$clPath" `
+            -DCMAKE_CXX_COMPILER="$clPath" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
