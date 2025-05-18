@@ -65,7 +65,12 @@ jobs:
           New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
           # Configure
-          Set-Location "$env:RUNNER_TEMP/build"
+          # 动态创建构建目录
+          $buildDir = "$env:RUNNER_TEMP/build-${{ matrix.config }}"
+          Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory $buildDir | Out-Null
+          Set-Location $buildDir
+          
           cmake "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0" `
             -G "Ninja" `
             -DCMAKE_BUILD_TYPE=${{ matrix.config }} `
