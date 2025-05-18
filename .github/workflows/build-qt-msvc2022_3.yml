@@ -68,7 +68,7 @@ jobs:
           Set-Location "$env:RUNNER_TEMP/build"
           cmake "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0" `
             -G "Ninja" `
-            -DCMAKE_BUILD_TYPE=$env:CONFIG `
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} `
             -DCMAKE_INSTALL_PREFIX=$installRoot `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
