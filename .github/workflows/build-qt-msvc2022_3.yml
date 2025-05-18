@@ -7,8 +7,15 @@ jobs:
   build-qt:
     name: Build Qt 6.9 for Windows (VS2022)
     runs-on: windows-latest
+
+    # 并行三种模式
+    strategy:
+      matrix:
+        config: [ Debug, Release, RelWithDebInfo ]
     env:
       QT_SOURCE_URL: https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip
+      INSTALL_ROOT: ${{ runner.temp }}/qt-6.9/${{ matrix.config }}
+      ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
 
     steps:
       - name: Checkout repository
@@ -17,184 +24,61 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y cmake ninja 7zip openssl llvm gperf
+          choco install -y cmake ninja 7zip openssl llvm gperf `
+                --no-progress `
+                --limit-output
 
-      - name: Prepare environment paths
+      - name: Download & extract Qt
         shell: pwsh
         run: |
-          "INSTALL_ROOT=$env:RUNNER_TEMP\\qt-6.9"  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "ARTIFACTS_DIR=$env:RUNNER_TEMP\\artifacts" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src"
 
-      - name: Download Qt 6.9.0 source
+      - name: Prepare build directory
         shell: pwsh
         run: |
-          $zipPath = Join-Path $env:RUNNER_TEMP "qt6.zip"
-          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zipPath
-          "QT_ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
-      - name: Extract Qt source
+      - name: Setup MSVC environment
         shell: pwsh
         run: |
-          7z x "$env:QT_ZIP_PATH" -y -o"$env:RUNNER_TEMP\\qt6_src"
-
-      - name: Prepare directories
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path "$env:INSTALL_ROOT"            -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:ARTIFACTS_DIR"           -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\\build-Debug"        -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\\build-Release"      -Force | Out-Null
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\\build-RelWithDebInfo" -Force | Out-Null
-
-      - name: List extracted files
-        shell: pwsh
-        run: |
-          dir "$env:RUNNER_TEMP\\qt6_src"
-
-      # - name: 自动加载 MSVC 2022 编译环境
-      #   shell: pwsh
-      #   run: |
-      #     # 查找 VS2022 安装路径
-      #     $vsPath = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-      #       -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-      #     Write-Host "VS install path: $vsPath"
-          
-      #     # 运行 vcvars64.bat 并导出环境变量
-      #     $vcvars = Join-Path $vsPath 'VC\Auxiliary\Build\vcvars64.bat'
-      #     cmd.exe /c "call `"$vcvars`" && set > %TEMP%\vsvars.txt"
-        
-      #     # 将所有环境变量写回 PowerShell 进程环境
-      #     Get-Content "$Env:TEMP\vsvars.txt" | ForEach-Object {
-      #       if ($_ -match '^(.*?)=(.*)$') {
-      #         Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
-      #       }
-      #     }
-
-      - name: Configure, build and install Debug
-        shell: pwsh
-        run: |
-          # 1. 查找 Visual Studio 安装路径
-          $vsRoot = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+          $vs = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
             -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
             -property installationPath
-          Write-Host "VS install path: $vsRoot"
-
-          # 2. 调用 vcvars64.bat 并捕获环境变量
-          $vcvarsPath = Join-Path $vsRoot "VC\Auxiliary\Build\vcvars64.bat"
-          cmd /c "call `"$vcvarsPath`" amd64 && set > %TEMP%\vsvars.txt"
-
-          # 3. 加载环境变量到当前会话
-          Get-Content "$env:TEMP\vsvars.txt" | ForEach-Object {
-            if ($_ -match '^(.*?)=(.*)$') {
-              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
-            }
+          cmd /c "call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" amd64 && set > %TEMP%\vsenv.txt"
+          Get-Content $env:TEMP/vsenv.txt | ForEach-Object {
+            if ($_ -match '^(.*?)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] }
           }
 
-          # 4. 验证环境变量
-          Write-Host "LIB sample: $($Env:LIB.Split(';')[0])"
-          Write-Host "PATH sample: $($Env:PATH.Split(';')[0])"
-
-          # 5. 执行构建
-          Set-Location "$env:RUNNER_TEMP\build-Debug"
-          cmake "$env:RUNNER_TEMP\qt6_src\qt-everywhere-src-6.9.0" `
-            -G "Ninja Multi-Config" `
-            -DCMAKE_CONFIGURATION_TYPES="Debug;Release;RelWithDebInfo" `
-            -DCMAKE_DEFAULT_BUILD_TYPE=Debug `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT\Debug" `
-            -DQT_FEATURE_webengine=OFF `
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
-            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
-            -Wno-dev
-          cmake --build . --config Debug --parallel --target install
-
-      
-      - name: Configure, build and install Release
+      - name: Configure & build ${{ matrix.config }}
         shell: pwsh
         run: |
-          # 1. 查找 Visual Studio 安装路径
-          $vsRoot = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          Write-Host "VS install path: $vsRoot"
-
-          # 2. 调用 vcvars64.bat 并捕获环境变量
-          $vcvarsPath = Join-Path $vsRoot "VC\Auxiliary\Build\vcvars64.bat"
-          cmd /c "call `"$vcvarsPath`" amd64 && set > %TEMP%\vsvars.txt"
-
-          # 3. 加载环境变量到当前会话
-          Get-Content "$env:TEMP\vsvars.txt" | ForEach-Object {
-            if ($_ -match '^(.*?)=(.*)$') {
-              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
-            }
-          }
-
-          # 4. 验证环境变量
-          Write-Host "LIB sample: $($Env:LIB.Split(';')[0])"
-          Write-Host "PATH sample: $($Env:PATH.Split(';')[0])"
-          
-          Set-Location "$env:RUNNER_TEMP\\build-Release"
-
+          $buildDir = "$env:RUNNER_TEMP/build"
+          Set-Location $buildDir
           cmake "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0" `
-            -G "Ninja Multi-Config" `
-            -DCMAKE_CONFIGURATION_TYPES="Debug;Release;RelWithDebInfo" `
-            -DCMAKE_DEFAULT_BUILD_TYPE=Release `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT/Release" `
+            -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} `
+            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT" `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
             -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
-          cmake --build . --config Release --parallel --target install
-      
-      - name: Configure, build and install RelWithDebInfo
+          cmake --build . --parallel --target install
+
+      - name: Package ${{ matrix.config }}
         shell: pwsh
         run: |
-          # 1. 查找 Visual Studio 安装路径
-          $vsRoot = & "${Env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          Write-Host "VS install path: $vsRoot"
+          New-Item -ItemType Directory -Path "$env:ARTIFACTS_DIR" -Force | Out-Null
+          7z a "$env:ARTIFACTS_DIR/qt-6.9.0-win-msvc2022-${{ matrix.config }}.7z" "$env:INSTALL_ROOT"
 
-          # 2. 调用 vcvars64.bat 并捕获环境变量
-          $vcvarsPath = Join-Path $vsRoot "VC\Auxiliary\Build\vcvars64.bat"
-          cmd /c "call `"$vcvarsPath`" amd64 && set > %TEMP%\vsvars.txt"
-
-          # 3. 加载环境变量到当前会话
-          Get-Content "$env:TEMP\vsvars.txt" | ForEach-Object {
-            if ($_ -match '^(.*?)=(.*)$') {
-              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
-            }
-          }
-
-          # 4. 验证环境变量
-          Write-Host "LIB sample: $($Env:LIB.Split(';')[0])"
-          Write-Host "PATH sample: $($Env:PATH.Split(';')[0])"
-          
-          Set-Location "$env:RUNNER_TEMP\\build-RelWithDebInfo"
-
-          cmake "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0" `
-            -G "Ninja Multi-Config" `
-            -DCMAKE_CONFIGURATION_TYPES="Debug;Release;RelWithDebInfo" `
-            -DCMAKE_DEFAULT_BUILD_TYPE=RelWithDebInfo `
-            -DCMAKE_INSTALL_PREFIX="$env:INSTALL_ROOT/RelWithDebInfo" `
-            -DQT_FEATURE_webengine=OFF `
-            -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
-            -DClang_INCLUDE_DIR="C:/Program Files/LLVM/include" `
-            -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
-            -Wno-dev
-          cmake --build . --config Release --parallel --target install
-
-      - name: Package all builds
-        shell: pwsh
-        run: |
-          Set-Location "$env:INSTALL_ROOT"
-          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Debug.7z"        "Debug"
-          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Release.7z"      "Release"
-          7z a "$env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z" "RelWithDebInfo"
-
-      - name: Create GitHub Release
-        id: create_release
+  release:
+    needs: build-qt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts & Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name:     ${{ github.ref }}
@@ -202,26 +86,10 @@ jobs:
           draft:        false
           prerelease:   false
 
-      - name: Upload Debug artifact
+      - name: Upload all artifacts
         uses: actions/upload-release-asset@v1
         with:
-          upload_url:        ${{ steps.create_release.outputs.upload_url }}
-          asset_path:        $env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Debug.7z
-          asset_name:        qt-6.9.0-win-msvc2022-Debug.7z
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ runner.temp }}/artifacts
+          asset_name: qt-6.9.0-win-msvc2022
           asset_content_type: application/x-7z-compressed
-
-      - name: Upload Release artifact
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url:        ${{ steps.create_release.outputs.upload_url }}
-          asset_path:        $env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-Release.7z
-          asset_name:        qt-6.9.0-win-msvc2022-Release.7z
-          asset_content_type: application/x‑7z‑compressed
-
-      - name: Upload RelWithDebInfo artifact
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url:        ${{ steps.create_release.outputs.upload_url }}
-          asset_path:        $env:ARTIFACTS_DIR\\qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
-          asset_name:        qt-6.9.0-win-msvc2022-RelWithDebInfo.7z
-          asset_content_type: application/x‑7z‑compressed
