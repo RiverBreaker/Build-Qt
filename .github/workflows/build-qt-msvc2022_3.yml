@@ -81,6 +81,8 @@ jobs:
           $install = "$env:INSTALL_ROOT\\Debug"
           cmake $src `
             -G "Ninja Multi-Config" `
+            -DCMAKE_C_COMPILER="cl.exe" `
+            -DCMAKE_CXX_COMPILER="cl.exe" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
@@ -88,6 +90,7 @@ jobs:
             -DGPERF_EXECUTABLE="C:/ProgramData/chocolatey/bin/gperf.exe" `
             -Wno-dev
           cmake --build . --config Debug --parallel --target install
+
       
       - name: Configure, build and install Release
         shell: pwsh
@@ -97,6 +100,8 @@ jobs:
           $install = "$env:INSTALL_ROOT\\Release"
           cmake $src `
             -G "Ninja Multi-Config" `
+            -DCMAKE_C_COMPILER="cl.exe" `
+            -DCMAKE_CXX_COMPILER="cl.exe" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
@@ -113,6 +118,8 @@ jobs:
           $install = "$env:INSTALL_ROOT\\RelWithDebInfo"
           cmake $src `
             -G "Ninja Multi-Config" `
+            -DCMAKE_C_COMPILER="cl.exe" `
+            -DCMAKE_CXX_COMPILER="cl.exe" `
             -DCMAKE_INSTALL_PREFIX=$install `
             -DQT_FEATURE_webengine=OFF `
             -DOPENSSL_ROOT_DIR="C:/Program Files/OpenSSL" `
