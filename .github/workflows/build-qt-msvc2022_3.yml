@@ -40,7 +40,7 @@ jobs:
         run: |
           $zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
-          7z x $zip -y -o "$env:RUNNER_TEMP/qt6_src" -mmt=on
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
 
       - name: Prepare build directory
         shell: pwsh
