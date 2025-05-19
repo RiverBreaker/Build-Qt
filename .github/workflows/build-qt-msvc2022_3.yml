@@ -117,7 +117,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name:     ${{ github.ref }}
-          release_name: Qt 6.9.0 Windows VS2022 Builds
+          name: Qt 6.9.0 Windows VS2022 Builds
           draft:        false
           prerelease:   false
 
