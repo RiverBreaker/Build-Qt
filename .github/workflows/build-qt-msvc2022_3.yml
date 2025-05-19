@@ -1,19 +1,21 @@
-name: Build Qt 6.9 (Windows VS2022)
+name: Build Qt (Windows VS2022)
 
 on:
   workflow_dispatch:
+    inputs:
+      qt_version:                    # ← 注意这里不需要大写
+        description: 'Qt version to build (e.g. 6.9.0)'
+        required: true
+        default: '6.9.0'
 
 jobs:
   build-qt:
-    name: Build Qt 6.9 for Windows (VS2022)
+    name: Build Qt ${{ inputs.qt_version }} for Windows (VS2022)
     runs-on: windows-latest
 
     strategy:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
-    env:
-      QT_VERSION: 6.9.0
-      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/6.9/${{ env.QT_VERSION }}/single/qt-everywhere-src-${{ env.QT_VERSION }}.zip
 
     steps:
       - name: Checkout repository
@@ -26,15 +28,20 @@ jobs:
         shell: pwsh
         run: |
           git config --system core.longpaths true
-          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" \
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
-      # 缓存 Qt 源码解压目录
+      - name: Set Qt 环境变量
+        shell: pwsh
+        run: |
+          echo "QT_VERSION=${{ inputs.qt_version }}" >> $env:GITHUB_ENV
+          echo "QT_SOURCE_URL=https://download.qt.io/official_releases/qt/${{ inputs.qt_version }}/single/qt-everywhere-src-${{ inputs.qt_version }}.zip" >> $env:GITHUB_ENV
+
       - name: Cache Qt source
+        id: cache-qt-source
         uses: actions/cache@v3
         with:
-          # key 包含 Qt 版本，可保证版本变更时失效重下载
-          key: qt-src-${{ env.QT_VERSION }}-windows
+          key: qt-src-${{ inputs.qt_version }}-windows
           path: ${{ runner.temp }}/qt6_src
 
       - name: Install build tools via Chocolatey
@@ -63,28 +70,23 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          rem 查找 VS 路径并加载 MSVC 环境
-          for /f "usebackq tokens=*" %%V in (`
-            "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
-            -latest -products * ^
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
-            -property installationPath
-          `) do set vsRoot=%%V
+          rem 1. 查找 VS2022 安装路径并加载编译环境
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvars64.bat" amd64
 
-          rem 设置路径变量
+          rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
           set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
-          rem 清理旧构建、创建目录
+          rem 3. 清理/创建
           if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
           mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
           mkdir "%INSTALL_DIR%" 2>nul
           mkdir "%ARTIFACTS_DIR%" 2>nul
 
-          rem 根据 CONFIG 选择 configure 参数
+          rem 4. 选择模式
           if /I "%CONFIG%"=="Debug" (
             set MODE=-debug
           ) else if /I "%CONFIG%"=="Release" (
@@ -93,42 +95,42 @@ jobs:
             set MODE=-debug-and-release
           )
 
-          rem Configure
-          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" `
-            -nomake examples -nomake tests -skip qtwebengine -opensource `
-            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre `
+          rem 5. 调用 configure
+          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre ^
             -qt-freetype -schannel -platform win32-msvc
 
-          rem Build & Install
+          rem 6. Build & Install
           cmake --build . --parallel
           ninja install
 
-      # 缓存每个配置的 build 目录
       - name: Cache build directory (${{ matrix.config }})
         uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/build-${{ matrix.config }}
-          # key 需要包括配置、Qt 版本、actions runner
-          key: qt-build-${{ matrix.config }}-v${{ env.QT_VERSION }}-${{ runner.os }}
+          key: qt-build-${{ matrix.config }}-v${{ inputs.qt_version }}-${{ runner.os }}
           restore-keys: |
-            qt-build-${{ matrix.config }}-v${{ env.QT_VERSION }}-
+            qt-build-${{ matrix.config }}-v${{ inputs.qt_version }}-
             qt-build-${{ matrix.config }}-
 
       - name: Package ${{ matrix.config }}
         shell: cmd
         run: |
-          7z a "%ARTIFACTS_DIR%\qt-%QT_VERSION%-win-msvc2022-%CONFIG%.7z" ^
-            "%INSTALL_DIR%" -mmt=on
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ inputs.qt_version }}-win-msvc2022-%CONFIG%.7z" ^
+            "%RUNNER_TEMP%\qt-${{ inputs.qt_version }}\%CONFIG%" -mmt=on
 
       - name: Create Tag
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ env.QT_VERSION }}
-          git push origin v${{ env.QT_VERSION }}
+          git tag v${{ inputs.qt_version }}
+          git push origin v${{ inputs.qt_version }}
 
   release:
+    name: Create Release for Qt ${{ inputs.qt_version }}
     needs: build-qt
     runs-on: ubuntu-latest
     steps:
@@ -137,8 +139,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           token:      ${{ secrets.GITHUB_TOKEN }}
-          tag_name:   v${{ env.QT_VERSION }}
-          name:       Qt ${{ env.QT_VERSION }} Windows VS2022 Builds
+          tag_name:   v${{ inputs.qt_version }}
+          name:       Qt ${{ inputs.qt_version }} Windows VS2022 Builds
           draft:      false
           prerelease: false
 
@@ -146,6 +148,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url:        ${{ steps.create_release.outputs.upload_url }}
-          asset_path:        ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-*.7z
-          asset_name:        qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+          asset_path:        ${{ runner.temp }}/artifacts/qt-${{ inputs.qt_version }}-win-msvc2022-*.7z
+          asset_name:        qt-${{ inputs.qt_version }}-win-msvc2022-${{ matrix.config }}.7z
           asset_content_type: application/x-7z-compressed
