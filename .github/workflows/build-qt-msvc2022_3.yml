@@ -47,6 +47,13 @@ jobs:
         run: |
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
+      
+      - name: 下载 Chromium 源码 for QtWebEngine
+        shell: pwsh
+        run: |
+          $qeDir = "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0/qtwebengine"
+          Set-Location $qeDir
+          python scripts/download-webengine-src.py --platform=win64 --jobs=4
 
       - name: Configure & build ${{ matrix.config }}
         shell: pwsh
