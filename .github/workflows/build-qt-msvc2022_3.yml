@@ -53,7 +53,7 @@ jobs:
         run: |
           $qeDir = "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-6.9.0/qtwebengine"
           Set-Location $qeDir
-          python scripts/download-webengine-src.py --platform=win64 --jobs=4
+          python src/3rdparty/chromium/third_party/crossbench/crossbench/browsers/downloader.py --platform=win64 --jobs=4
 
       - name: Configure & build ${{ matrix.config }}
         shell: pwsh
