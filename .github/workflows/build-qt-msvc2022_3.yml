@@ -1,21 +1,29 @@
-name: Build Qt (Windows VS2022)
+name: Build Qt 6 (Windows VS2022)
 
 on:
   workflow_dispatch:
     inputs:
-      qt_version:               
-        description: 'Qt version to build (e.g. 6.9.0)'
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号（例如 6.9）'
         required: true
-        default: '6.9.0'
+        default: '6.9'
+      qt_patch:
+        description: 'Qt 补丁版本号（例如 0），默认 0'
+        required: false
+        default: '0'
 
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_version }} for Windows (VS2022)
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (VS2022)
     runs-on: windows-latest
 
     strategy:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
 
     steps:
       - name: Checkout repository
@@ -31,17 +39,11 @@ jobs:
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
-      - name: Set Qt 环境变量
-        shell: pwsh
-        run: |
-          echo "QT_VERSION=${{ inputs.qt_version }}" >> $env:GITHUB_ENV
-          echo "QT_SOURCE_URL=https://download.qt.io/official_releases/qt/6.9/${{ inputs.qt_version }}/single/qt-everywhere-src-${{ inputs.qt_version }}.zip" >> $env:GITHUB_ENV
-
       - name: Cache Qt source
         id: cache-qt-source
         uses: actions/cache@v3
         with:
-          key: qt-src-${{ inputs.qt_version }}-windows
+          key: qt-src-${{ env.QT_VERSION }}-windows
           path: ${{ runner.temp }}/qt6_src
 
       - name: Install build tools via Chocolatey
@@ -108,8 +110,8 @@ jobs:
       - name: Package ${{ matrix.config }}
         shell: cmd
         run: |
-          7z a "%RUNNER_TEMP%\artifacts\qt-${{ inputs.qt_version }}-win-msvc2022-%CONFIG%.7z" ^
-            "%RUNNER_TEMP%\qt-${{ inputs.qt_version }}\%CONFIG%" -mmt=on
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
+            "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on
 
       - name: Create Tag
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -117,28 +119,46 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ inputs.qt_version }}
-          git push origin v${{ inputs.qt_version }}
+          git tag v${{ env.QT_VERSION }}
+          git push origin v${{ env.QT_VERSION }}
 
   release:
-    name: Create Release for Qt ${{ inputs.qt_version }}
+    name: Create Release for Qt ${{ env.QT_VERSION }}
     needs: build-qt
     runs-on: ubuntu-latest
+    env:
+      TAG: v${{ env.QT_VERSION }}
     steps:
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           token:      ${{ secrets.GITHUB_TOKEN }}
-          tag_name:   v${{ inputs.qt_version }}
-          name:       Qt ${{ inputs.qt_version }} Windows VS2022 Builds
+          tag_name:   ${{ env.TAG }}
+          name:       Qt ${{ env.QT_VERSION }} Windows VS2022 Builds
           draft:      false
           prerelease: false
 
-      - name: Upload artifacts
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url:        ${{ steps.create_release.outputs.upload_url }}
-          asset_path:        ${{ runner.temp }}/artifacts/qt-${{ inputs.qt_version }}-win-msvc2022-*.7z
-          asset_name:        qt-${{ inputs.qt_version }}-win-msvc2022-${{ matrix.config }}.7z
-          asset_content_type: application/x-7z-compressed
+      - name: Find artifacts
+        id: find_artifacts
+        shell: bash
+        run: |
+          mkdir -p found
+          # 将所有 *.7z 写入一个临时文件
+          find "$RUNNER_TEMP/artifacts" -maxdepth 1 -type f -name "qt-${{ env.QT_VERSION }}-win-msvc2022-*.7z" \
+            > found/list.txt
+
+      - name: Upload all artifacts
+        shell: bash
+        run: |
+          while IFS= read -r file; do
+            filename="$(basename "$file")"
+            gh-release upload \
+              --clobber \
+              --repo "${GITHUB_REPOSITORY}" \
+              --tag "${TAG}" \
+              --name "${filename}" \
+              --file "${file}"
+          done < found/list.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
