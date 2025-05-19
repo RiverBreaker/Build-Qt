@@ -3,7 +3,7 @@ name: Build Qt (Windows VS2022)
 on:
   workflow_dispatch:
     inputs:
-      qt_version:                    # ← 注意这里不需要大写
+      qt_version:               
         description: 'Qt version to build (e.g. 6.9.0)'
         required: true
         default: '6.9.0'
@@ -104,15 +104,6 @@ jobs:
           rem 6. Build & Install
           cmake --build . --parallel
           ninja install
-
-      - name: Cache build directory (${{ matrix.config }})
-        uses: actions/cache@v3
-        with:
-          path: ${{ runner.temp }}/build-${{ matrix.config }}
-          key: qt-build-${{ matrix.config }}-v${{ inputs.qt_version }}-${{ runner.os }}
-          restore-keys: |
-            qt-build-${{ matrix.config }}-v${{ inputs.qt_version }}-
-            qt-build-${{ matrix.config }}-
 
       - name: Package ${{ matrix.config }}
         shell: cmd
