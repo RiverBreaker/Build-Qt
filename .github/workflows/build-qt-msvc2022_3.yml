@@ -27,7 +27,7 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y cmake ninja 7zip openssl llvm gperf protobuf perl python3 `
+          choco install -y cmake ninja 7zip openssl llvm gperf `
             --no-progress `
             --limit-output
 
