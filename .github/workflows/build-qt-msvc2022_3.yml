@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [ Debug, Release, Debug-and-Release ]
+        config: [ Debug, Release, RelWithDebInfo ]
     env:
       QT_SOURCE_URL: https://download.qt.io/official_releases/qt/6.9/6.9.0/single/qt-everywhere-src-6.9.0.zip
 
