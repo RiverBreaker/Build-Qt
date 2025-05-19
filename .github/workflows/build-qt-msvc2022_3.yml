@@ -70,8 +70,6 @@ jobs:
           ) else (
             set QT_CONF_MODE=-debug-and-release
           )
-
-          mkdir build-%CONFIG% 2>nul && cd /d build-%CONFIG%
           
           rem 调用 configure 脚本
           call "%SRC_QT%\configure.bat" ^
