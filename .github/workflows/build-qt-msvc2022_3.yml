@@ -123,7 +123,7 @@ jobs:
           git push origin v${{ env.QT_VERSION }}
 
   release:
-    name: Create Release for Qt ${{ env.QT_VERSION }}
+    name: Create Release for Qt v${{ inputs.qt_majmin }}.$｛｛ inputs.qt_patch ｝｝
     needs: build-qt
     runs-on: ubuntu-latest
     env:
