@@ -11,6 +11,7 @@ on:
         description: 'Qt 补丁版本号（例如 0），默认 0'
         required: false
         default: '0'
+      
 
 jobs:
   build-qt:
@@ -23,6 +24,8 @@ jobs:
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
       QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
 
     steps:
@@ -115,12 +118,6 @@ jobs:
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
-            
-      - name: Upload artifact for ${{ matrix.config }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
-          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
 
       - name: Create Tag
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -131,20 +128,8 @@ jobs:
           git tag v${{ env.QT_VERSION }}
           git push origin v${{ env.QT_VERSION }}
 
-  release:
-    name: Create Release for Qt v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-    needs: build-qt
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        config: [ Debug, Release, RelWithDebInfo ]
-    env:
-      QT_MAJMIN: ${{ inputs.qt_majmin }}
-      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-      GITHUB_REPOSITORY: ${{ github.repository }}
-    steps:
-      - name: Create GitHub Release
+      - name: Create Github Release 
+        if: matrix.config == 'Release'
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
@@ -152,17 +137,12 @@ jobs:
           tag_name:   ${{ env.TAG }}
           name:       Qt ${{ env.QT_VERSION }} Windows VS2022 Builds
           draft:      false
-          prerelease: false
+          prerelease: false  
       
-      - name: Download artifacts for ${{ matrix.config }}
-        uses: actions/download-artifact@v4
-        with:
-          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
-          path: ${{ runner.temp }}/downloaded/${{ matrix.config }}
-
       - name: Upload to GitHub Release (${{ matrix.config }})
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          files: ${{ runner.temp }}/downloaded/${{ matrix.config }}/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+          files: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
