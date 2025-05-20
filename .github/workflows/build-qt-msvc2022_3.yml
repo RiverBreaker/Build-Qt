@@ -142,8 +142,9 @@ jobs:
           prerelease: false  
       
       - name: Upload to GitHub Release (${{ matrix.config }})
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
-          files: ${{ runner.temp }}\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+          files: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
