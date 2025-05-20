@@ -127,7 +127,9 @@ jobs:
     needs: build-qt
     runs-on: ubuntu-latest
     env:
-      TAG: v${{ env.QT_VERSION }}
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     steps:
       - name: Create GitHub Release
         id: create_release
