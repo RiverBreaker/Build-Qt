@@ -112,15 +112,8 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}  # 显式传递环境变量
         run: |
-          # 创建 artifacts 目录（兼容路径不存在的情况）
-          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/artifacts" | Out-Null
-          
-          # 构建动态路径
-          $archivePath = "$env:RUNNER_TEMP/artifacts/qt-$env:QT_VERSION-win-msvc2022-$env:CONFIG.7z"
-          $sourceDir = "$env:RUNNER_TEMP/qt-$env:QT_VERSION/$env:CONFIG"
-          
-          # 调用7z进行压缩（兼容空格路径）
-          & "7z" a $archivePath $sourceDir -mmt=on -bsp1
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
+            "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
             
       - name: Upload build artifact (${{ matrix.config }})
         uses: actions/upload-artifact@v4
