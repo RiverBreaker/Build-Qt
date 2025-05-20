@@ -67,7 +67,7 @@ jobs:
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
-      - name: Configure & build ${{ matrix.config }}
+      - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
@@ -136,6 +136,7 @@ jobs:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
       - name: 安装 gh-run-artifact (Windows 版, bash)
         shell: bash
@@ -167,19 +168,19 @@ jobs:
             echo "↓ 下载配置：$cfg"
             # 下载 build-qt 阶段上传的 artifact
             gh-run-artifact download \
-              --name qt-${QT_VERSION}-$cfg \
-              --path downloaded
+                --name qt-${QT_VERSION}-$cfg \
+                --path downloaded/qt-${QT_VERSION}-$cfg
           done
   
           echo "↓ 上传到 Release"
-          for file in downloaded/*.7z; do
-            filename=$(basename "$file")
-            gh-release upload \
-              --repo "${GITHUB_REPOSITORY}" \
-              --tag "${TAG}" \
-              --name "${filename}" \
-              --file "${file}" \
-              --clobber
-          done
+          find downloaded -type f -name '*.7z' | while read -r file; do
+              filename=$(basename "$file")
+              gh-release upload \
+                --repo "${GITHUB_REPOSITORY}" \
+                --tag "${TAG}" \
+                --name "${filename}" \
+                --file "${file}" \
+                --clobber
+            done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
