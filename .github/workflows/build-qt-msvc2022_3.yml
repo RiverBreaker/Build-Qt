@@ -129,7 +129,7 @@ jobs:
           git push origin v${{ env.QT_VERSION }}
 
       - name: Create Github Release 
-        if: matrix.config == 'Release'
+        if: matrix.config == 'Debug'
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
