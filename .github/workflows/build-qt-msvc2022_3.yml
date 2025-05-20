@@ -17,6 +17,8 @@ jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (VS2022)
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     strategy:
       matrix:
@@ -143,6 +145,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
           name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
-          files: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
+          files: ${{ runner.temp }}\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
