@@ -132,19 +132,21 @@ jobs:
     name: Create Release for Qt v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     needs: build-qt
     runs-on: windows-latest
-    strategy:
-      matrix:
-        config: [Debug, Release, RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: artifacts
-          name: qt-${{ env.QT_VERSION }}-${{ matrix.config }}
+      - name: 安装 gh-run-artifact (Windows 版, bash)
+        shell: bash
+        run: |
+          url="https://github.com/pearkes/gh-run-artifact/releases/download/v0.6.0/gh-run-artifact_0.6.0_windows_amd64.zip"
+          zip="$RUNNER_TEMP/gh-run-artifact.zip"
+          install_dir="$RUNNER_TEMP/gh-run-artifact"
+          mkdir -p "$install_dir"
+          curl -L -o "$zip" "$url"
+          unzip -d "$install_dir" "$zip"
+          echo "$install_dir" >> $GITHUB_PATH
           
       - name: Create GitHub Release
         id: create_release
@@ -156,26 +158,28 @@ jobs:
           draft:      false
           prerelease: false
 
-      - name: Find artifacts
-        id: find_artifacts
+      - name: Download and upload all artifacts
         shell: bash
         run: |
-          mkdir -p found
-          # 将所有 *.7z 写入一个临时文件
-          find "$RUNNER_TEMP/artifacts" -maxdepth 1 -type f -name "qt-${{ env.QT_VERSION }}-win-msvc2022-*.7z" \
-            > found/list.txt
-
-      - name: Upload all artifacts
-        shell: bash
-        run: |
-          while IFS= read -r file; do
-            filename="$(basename "$file")"
+          mkdir downloaded
+          # 三种配置
+          for cfg in Debug Release RelWithDebInfo; do
+            echo "↓ 下载配置：$cfg"
+            # 下载 build-qt 阶段上传的 artifact
+            gh-run-artifact download \
+              --name qt-${QT_VERSION}-$cfg \
+              --path downloaded
+          done
+  
+          echo "↓ 上传到 Release"
+          for file in downloaded/*.7z; do
+            filename=$(basename "$file")
             gh-release upload \
-              --clobber \
               --repo "${GITHUB_REPOSITORY}" \
               --tag "${TAG}" \
               --name "${filename}" \
-              --file "${file}"
-          done < found/list.txt
+              --file "${file}" \
+              --clobber
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
