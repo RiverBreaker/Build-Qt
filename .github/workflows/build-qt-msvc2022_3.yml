@@ -140,7 +140,7 @@ jobs:
           prerelease: false  
       
       - name: Upload to GitHub Release (${{ matrix.config }})
-        if: matrix.config == 'Debug
+        if: matrix.config == 'Debug'
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
