@@ -125,7 +125,7 @@ jobs:
   release:
     name: Create Release for Qt v${{ inputs.qt_majmin }}.$｛｛ inputs.qt_patch ｝｝
     needs: build-qt
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
