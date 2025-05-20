@@ -141,7 +141,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-          name: qt-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-*
+          name: qt-${{ env.QT_VERSION }}-win-msvc2022-
           
       - name: Create GitHub Release
         id: create_release
