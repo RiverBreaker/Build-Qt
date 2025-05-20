@@ -117,7 +117,7 @@ jobs:
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
             
       - name: Upload artifact for ${{ matrix.config }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
           path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
@@ -155,7 +155,7 @@ jobs:
           prerelease: false
       
       - name: Download artifacts for ${{ matrix.config }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
           path: ${{ runner.temp }}/downloaded/${{ matrix.config }}
