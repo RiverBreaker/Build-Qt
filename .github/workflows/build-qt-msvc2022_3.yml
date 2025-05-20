@@ -129,9 +129,12 @@ jobs:
           git push origin v${{ env.QT_VERSION }}
 
   release:
-    name: Create Release for Qt v${{ inputs.qt_majmin }}.$｛｛ inputs.qt_patch ｝｝
+    name: Create Release for Qt v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     needs: build-qt
     runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -141,7 +144,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-          name: qt-${{ env.QT_VERSION }}-win-msvc2022-
+          name: qt-${{ env.QT_VERSION }}-${{ matrix.config }}
           
       - name: Create GitHub Release
         id: create_release
