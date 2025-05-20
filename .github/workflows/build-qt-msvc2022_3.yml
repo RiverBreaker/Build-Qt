@@ -108,17 +108,18 @@ jobs:
           ninja install
 
       - name: Package ${{ matrix.config }}
-        shell: pwsh
+        shell: cmd
         env:
           CONFIG: ${{ matrix.config }}  # 显式传递环境变量
         run: |
+          if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
             
-      - name: Upload build artifact (${{ matrix.config }})
-        uses: actions/upload-artifact@v4
+      - name: Upload artifact for ${{ matrix.config }}
+        uses: actions/upload-artifact@v3
         with:
-          name: qt-${{ env.QT_VERSION }}-${{ matrix.config }}
+          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
           path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
 
       - name: Create Tag
@@ -134,23 +135,15 @@ jobs:
     name: Create Release for Qt v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     needs: build-qt
     runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [ Debug, Release, RelWithDebInfo ]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
-      - name: 安装 gh-run-artifact (Windows 版, bash)
-        shell: bash
-        run: |
-          url="https://github.com/pearkes/gh-run-artifact/releases/download/v0.6.0/gh-run-artifact_0.6.0_windows_amd64.zip"
-          zip="$RUNNER_TEMP/gh-run-artifact.zip"
-          install_dir="$RUNNER_TEMP/gh-run-artifact"
-          mkdir -p "$install_dir"
-          curl -L -o "$zip" "$url"
-          unzip -d "$install_dir" "$zip"
-          echo "$install_dir" >> $GITHUB_PATH
-          
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -160,29 +153,16 @@ jobs:
           name:       Qt ${{ env.QT_VERSION }} Windows VS2022 Builds
           draft:      false
           prerelease: false
+      
+      - name: Download artifacts for ${{ matrix.config }}
+        uses: actions/download-artifact@v3
+        with:
+          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}
+          path: ${{ runner.temp }}/downloaded/${{ matrix.config }}
 
-      - name: Download and upload all artifacts
-        shell: bash
-        run: |
-          mkdir downloaded
-          # 三种配置
-          for cfg in Debug Release RelWithDebInfo; do
-            echo "↓ 下载配置：$cfg"
-            # 下载 build-qt 阶段上传的 artifact
-            gh-run-artifact download \
-                --name qt-${QT_VERSION}-$cfg \
-                --path downloaded/qt-${QT_VERSION}-$cfg
-          done
-  
-          echo "↓ 上传到 Release"
-          find downloaded -type f -name '*.7z' | while read -r file; do
-              filename=$(basename "$file")
-              gh-release upload \
-                --repo "${GITHUB_REPOSITORY}" \
-                --tag "${TAG}" \
-                --name "${filename}" \
-                --file "${file}" \
-                --clobber
-            done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to GitHub Release (${{ matrix.config }})
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          files: ${{ runner.temp }}/downloaded/${{ matrix.config }}/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
