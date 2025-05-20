@@ -112,6 +112,12 @@ jobs:
         run: |
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on
+            
+      - name: Upload build artifact (${{ matrix.config }})
+        uses: actions/upload-artifact@v3
+        with:
+          name: qt-${{ env.QT_VERSION }}-${{ matrix.config }}
+          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
 
       - name: Create Tag
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -131,6 +137,12 @@ jobs:
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
     steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+          name: qt-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-*
+          
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
