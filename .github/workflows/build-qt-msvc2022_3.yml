@@ -149,11 +149,10 @@ jobs:
             }
           }
 
-      # 安装并登录 gh CLI
       - name: Setup GitHub CLI
-        uses: cli/cli@v3
+        uses: actions/setup-gh-cli@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
 
       - name: Ensure Release exists or create
         id: ensure_release
