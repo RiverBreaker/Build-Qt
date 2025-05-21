@@ -121,43 +121,63 @@ jobs:
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
 
-      - name: Create Tag
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && matrix.config == 'Debug'
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          REPO: ${{ github.repository }}
-          TAG: v${{ env.QT_VERSION }}
+          REPO:       ${{ github.repository }}
+          TAG:        v${{ env.QT_VERSION }}
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 删除本地已存在的 tag（如果存在）
-          if (git show-ref --tags --quiet --verify "refs/tags/$env:TAG") {
-            Write-Host "Deleting local tag $env:TAG"
-            git tag -d "$env:TAG"
+          # 1. 检查本地是否已存在 TAG
+          $localExists = (git tag --list $env:TAG) -ne ""
+          if ($localExists) {
+            Write-Host "Local tag $TAG already exists, skip creation."
+          } else {
+            # 2. 检查远程是否已存在 TAG
+            $remoteTags = git ls-remote --tags origin $env:TAG
+            if ($remoteTags) {
+              Write-Host "Remote tag $TAG already exists, skip creation."
+            } else {
+              # 3. 本地＆远程都不存在时，创建并推送
+              git tag "$env:TAG"
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              Write-Host "Tag $TAG created and pushed."
+            }
           }
 
-          # 创建并推送
-          git tag "$env:TAG"
-          git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
+      # 安装并登录 gh CLI
+      - name: Setup GitHub CLI
+        uses: cli/cli@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Github Release 
-        if: matrix.config == 'Debug'
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          token:      ${{ secrets.GITHUB_TOKEN }}
-          tag_name:   ${{ env.TAG }}
-          name:       Qt ${{ env.QT_VERSION }} Windows VS2022 Builds
-          draft:      false
-          prerelease: false  
-      
-      - name: Upload to GitHub Release (${{ matrix.config }})
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.TAG }}
-          name: qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
-          files: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ensure Release exists or create
+        id: ensure_release
+        shell: bash
+        run: |
+          TAG="v${{ env.QT_VERSION }}"
+          # 查看是否已有该 tag 对应的 Release
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "Qt $TAG Windows VS2022 Builds" \
+              --notes "Automated build of Qt $TAG for Windows VS2022" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        shell: bash
+        run: |
+          TAG="v${{ env.QT_VERSION }}"
+          for cfg in Debug Release RelWithDebInfo; do
+            ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-$cfg.7z"
+            echo "Uploading $ASSET to release $TAG"
+            gh release upload "$TAG" "$RUNNER_TEMP/artifacts/$ASSET" --clobber
+          done
