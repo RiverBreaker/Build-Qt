@@ -149,11 +149,6 @@ jobs:
             }
           }
 
-      - name: 使用 GitHub CLI
-        run: gh release view v1.0.0
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Ensure Release exists or create
         id: ensure_release
         shell: bash
