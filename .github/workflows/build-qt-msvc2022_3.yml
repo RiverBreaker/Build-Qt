@@ -122,11 +122,18 @@ jobs:
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
 
       - name: Create Tag
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && matrix.config == 'Debug'
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 删除本地已存在的 tag（如果存在）
+          if (git rev-parse "v${env:QT_VERSION}" 2>$null) {
+            Write-Host "Deleting local tag v${env:QT_VERSION}"
+            git tag -d "v${env:QT_VERSION}"
+          }
+          
           git tag v${{ env.QT_VERSION }}
           git push origin v${{ env.QT_VERSION }}
 
