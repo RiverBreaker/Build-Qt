@@ -1,4 +1,4 @@
-name: Build Qt 6 (Windows VS2022)
+name: Build Qt 6.x.x (Windows VS2022)
 
 on:
   workflow_dispatch:
