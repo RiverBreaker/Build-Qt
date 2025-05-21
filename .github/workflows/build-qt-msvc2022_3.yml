@@ -153,7 +153,7 @@ jobs:
         id: ensure_release
         shell: bash
         env:
-          GH_TOKEN: ＄{{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ env.QT_VERSION }}"
           # 查看是否已有该 tag 对应的 Release
