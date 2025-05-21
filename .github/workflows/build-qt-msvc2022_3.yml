@@ -132,14 +132,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 检查本地是否有该 tag，存在就删除
-          if (git show-ref --tags --quiet --verify "refs/tags/${TAG}") {
-            Write-Host "Deleting local tag ${TAG}"
-            git tag -d "${TAG}"
+          # 删除本地已存在的 tag（如果存在）
+          if (git show-ref --tags --quiet --verify "refs/tags/$env:TAG") {
+            Write-Host "Deleting local tag $env:TAG"
+            git tag -d "$env:TAG"
           }
-          
-          git tag "${TAG}"
-          git push https://x-access-token:${PAT_TOKEN}@github.com/${REPO} "${TAG}"
+
+          # 创建并推送
+          git tag "$env:TAG"
+          git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
 
       - name: Create Github Release 
         if: matrix.config == 'Debug'
