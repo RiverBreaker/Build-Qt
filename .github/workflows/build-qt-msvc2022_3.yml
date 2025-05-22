@@ -171,10 +171,14 @@ jobs:
 
       - name: Upload build artifacts
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ env.QT_VERSION }}"
-          for cfg in Debug Release RelWithDebInfo; do
-            ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-$cfg.7z"
-            echo "Uploading $ASSET to release $TAG"
-            gh release upload "$TAG" "$RUNNER_TEMP/artifacts/$ASSET" --clobber
-          done
+          ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z"
+          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          if [ -f "$FILE" ]; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            echo "文件未找到，跳过上传：$FILE"
+          fi
