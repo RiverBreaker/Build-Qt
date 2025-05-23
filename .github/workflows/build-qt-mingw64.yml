@@ -86,6 +86,19 @@ jobs:
             --no-progress `
             --limit-output
 
+          # 2. 输出各工具安装路径
+          Write-Host ""
+          Write-Host "🔍 Installed tool locations:"
+          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          foreach ($t in $tools) {
+            $cmd = Get-Command $t -ErrorAction SilentlyContinue
+            if ($cmd) {
+              Write-Host "  $t -> $($cmd.Source)"
+            } else {
+              Write-Warning "  $t not found in PATH"
+            }
+          }
+
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
