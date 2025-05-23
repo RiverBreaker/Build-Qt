@@ -26,7 +26,7 @@ jobs:
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
@@ -34,9 +34,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+          
+      # 安装python
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-          fetch-tags: true
+          python-version: '3.13'
+          architecture: 'x64'
+  
+      # 安装msvc
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+  
+      # 安装vsdevenv
+      - name: Setup vsdevenv
+        uses: seanmiddleditch/gha-setup-vsdevenv@master
 
       - name: Enable long paths
         shell: pwsh
