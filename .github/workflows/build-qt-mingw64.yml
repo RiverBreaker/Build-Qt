@@ -59,7 +59,7 @@ jobs:
         run: |
           # 下载并解压 MinGW-w64 UCRT x86_64
           $zip = "$Env:RUNNER_TEMP\mingw.7z"
-          Invoke-WebRequest $Env:MINGW_URL -OutFile $zip
+          curl -L $Env:MINGW_URL -o $zip
           7z x $zip -o"$Env:RUNNER_TEMP\mingw64" -y
 
           # 查找 bin 目录并追加到 PATH
