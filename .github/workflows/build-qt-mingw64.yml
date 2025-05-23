@@ -105,10 +105,6 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          rem 1. 查找 VS2022 安装路径并加载编译环境
-          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
-          call "%vsRoot%\VC\Auxiliary\Build\vcvars64.bat" amd64
-
           rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
           set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
