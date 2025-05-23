@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -shared (Windows Mingw64)
+name: Build Qt 6.x.x(v6.6.0 以上) -shared (Windows Mingw64v1310)
 
 on:
   workflow_dispatch:
@@ -11,18 +11,7 @@ on:
         description: 'Qt 补丁版本号（例如 0），默认 0'
         required: false
         default: '0'
-      mingw_version:
-        description: 'MinGW 版本号（例如 15.1.0），默认 15.1.0'
-        required: false
-        default: '15.1.0'
-      mingw_version_nopoint:
-        description: 'MinGW 版本号（不带0）'
-        required: false
-        default: '1510'
-      mingw_runtime_version:
-        description: 'MinGW 运行时版本，需查看niXman/mingw-builds-binaries仓库'
-        required: false
-        default: '12'
+      
       
 jobs:
   build-qt:
@@ -41,7 +30,7 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
-      MINGW_URL: https://github.com/niXman/mingw-builds-binaries/releases/download/${{ inputs.mingw_version }}-rt_v${{ inputs.mingw_runtime_version }}-rev0/x86_64-${{ inputs.mingw_version }}-release-posix-seh-ucrt-rt_v${{ inputs.mingw_runtime_version }}-rev0.7z
+      QT_MINGW_URL: https://mirror.ossplanet.net/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_mingw1310/qt.tools.win64_mingw1310/13.1.0-202407240918mingw1310.7z
 
     steps:
       - name: Checkout repository
@@ -53,21 +42,6 @@ jobs:
         with:
           python-version: '3.13'
           architecture: 'x64'
-      
-      - name: Install Mingw64
-        shell: pwsh
-        run: |
-          # 下载并解压 MinGW-w64 UCRT x86_64
-          $zip = "$Env:RUNNER_TEMP\mingw.7z"
-          curl -L $Env:MINGW_URL -o $zip
-          7z x $zip -o"$Env:RUNNER_TEMP\mingw64" -y
-
-          # 查找 bin 目录并追加到 PATH
-          $gccDir = Get-ChildItem "$Env:RUNNER_TEMP\mingw64" -Directory | Select-Object -First 1
-          $binDir = Join-Path $gccDir.FullName "bin"
-          echo "MINGW_BIN=$binDir" >> $Env:GITHUB_ENV
-          echo $binDir | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
-          Write-Host "MinGW-w64 bin: $binDir added to PATH"
 
       - name: Enable long paths
         shell: pwsh
@@ -103,6 +77,44 @@ jobs:
             }
           }
 
+      - name: Install Mingw64
+        shell: pwsh
+        run: |
+          $extractRoot = "$Env:RUNNER_TEMP\mingw64"
+
+          function Add-MingwToPath($zipUrl, $dest) {
+            $zip = "$Env:RUNNER_TEMP\mingw.7z"
+            Write-Host "Downloading: $zipUrl"
+            Invoke-WebRequest -Uri $zipUrl -OutFile $zip
+
+            Write-Host "Extracting to: $dest"
+            7z x $zip -o"$dest" -y | Out-Null
+
+            # 自动发现 Tools 下的版本号文件夹
+            $toolsDir = Join-Path $dest 'Tools'
+            if (!(Test-Path $toolsDir)) {
+              throw "Tools directory not found: $toolsDir"
+            }
+
+            $subDir = Get-ChildItem -Path $toolsDir -Directory | Select-Object -First 1
+            if ($null -eq $subDir) {
+              throw "No subdirectory found under $toolsDir"
+            }
+
+            $binPath = Join-Path $subDir.FullName 'bin'
+            if (!(Test-Path $binPath)) {
+              throw "Bin path not found: $binPath"
+            }
+
+            Write-Host "Mingw bin path: $binPath"
+            # 写入环境变量
+            echo "MINGW_BIN=$binPath" >> $Env:GITHUB_ENV
+            echo $binPath | Out-File -FilePath $Env:GITHUB_PATH -Append
+          }
+
+          # 调用统一函数
+          Add-MingwToPath $Env:QT_MINGW_URL $extractRoot
+
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
@@ -122,6 +134,8 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
+          set "PATH=%MINGW_BIN%;%PATH%"
+
           rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
           set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
@@ -144,11 +158,14 @@ jobs:
           )
 
           rem 5. 调用 configure
-          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+          call "%SRC_QT%\configure.bat" -G "Ninja" ^
+            -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre ^
             -qt-freetype -schannel -platform win32-g++ ^
-            -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=TRUE
+            -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=TRUE ^
+            -DPostgreSQL_INCLUDE_DIR="C:/Progra~1/PostgreSQL/14/include" ^
+            -DPostgreSQL_INCLUDE_DIR_SERVER="C:/Progra~1/PostgreSQL/14/include/server"
 
           rem 6. Build & Install
           cmake --build . --parallel
@@ -158,10 +175,10 @@ jobs:
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
-          MINGW64_VERSION: ${{ inputs.mingw_version_nopoint }}_64_UCRT
+          MINGW64_VERSION: mingw1310_x64
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
-          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-%CONFIG%.7z" ^
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-shared-win-${{ env.MINGW64_VERSION }}-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
 
       - name: Create Tag if not exists
@@ -215,10 +232,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          MINGW64_VERSION: ${{ inputs.mingw_version_nopoint }}_64_UCRT
+          MINGW64_VERSION: mingw1310_x64
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-${{ matrix.config }}.7z"
+          ASSET="qt-${{ env.QT_VERSION }}-shared-win-${{ env.MINGW64_VERSION }}-${{ matrix.config }}.7z"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
