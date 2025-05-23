@@ -140,9 +140,10 @@ jobs:
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
+          MINGW64_VERSION: ${{ inputs.mingw_version }}_64_UCRT
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
-          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
 
       - name: Create Tag if not exists
@@ -196,9 +197,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          MINGW64_VERSION: ${{ inputs.mingw_version }}_64_UCRT
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z"
+          ASSET="qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-${{ matrix.config }}.7z"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
