@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x (Windows VS2022)
+name: Build Qt 6.x.x -shared (Windows VS2022)
 
 on:
   workflow_dispatch:
@@ -128,7 +128,7 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           REPO:       ${{ github.repository }}
-          TAG:        v${{ env.QT_VERSION }}
+          TAG:        v${{ env.QT_VERSION }}-shared
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -156,15 +156,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ env.QT_VERSION }}"
+          TAG="v${{ env.QT_VERSION }}-shared"
           # 查看是否已有该 tag 对应的 Release
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "found=existing" >> $GITHUB_OUTPUT
           else
             echo "found=new" >> $GITHUB_OUTPUT
             gh release create "$TAG" \
-              --title "Qt $TAG Windows VS2022 Builds" \
-              --notes "Automated build of Qt $TAG for Windows VS2022" \
+              --title "Qt $TAG Windows Builds" \
+              --notes "Automated build of Qt $TAG for Windows" \
               --draft=false \
               --prerelease=false
           fi
@@ -174,7 +174,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ env.QT_VERSION }}"
+          TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
