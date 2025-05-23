@@ -15,6 +15,10 @@ on:
         description: 'MinGW 版本号（例如 15.1.0），默认 15.1.0'
         required: false
         default: '15.1.0'
+      mingw_version_nopoint:
+        description: 'MinGW 版本号（不带0）'
+        required: false
+        default: '1510'
       
 jobs:
   build-qt:
@@ -140,7 +144,7 @@ jobs:
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
-          MINGW64_VERSION: ${{ inputs.mingw_version }}_64_UCRT
+          MINGW64_VERSION: ${{ inputs.mingw_version_nopoint }}_64_UCRT
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-%CONFIG%.7z" ^
@@ -197,7 +201,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          MINGW64_VERSION: ${{ inputs.mingw_version }}_64_UCRT
+          MINGW64_VERSION: ${{ inputs.mingw_version_nopoint }}_64_UCRT
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${{ env.QT_VERSION }}-win-${{ env.MINGW64_VERSION }}-${{ matrix.config }}.7z"
