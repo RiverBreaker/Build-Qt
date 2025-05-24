@@ -69,9 +69,22 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y cmake ninja 7zip openssl llvm gperf `
+          choco install -y 7zip openssl llvm gperf `
             --no-progress `
             --limit-output
+
+          # 2. 输出各工具安装路径
+          Write-Host ""
+          Write-Host "🔍 Installed tool locations:"
+          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          foreach ($t in $tools) {
+            $cmd = Get-Command $t -ErrorAction SilentlyContinue
+            if ($cmd) {
+              Write-Host "  $t -> $($cmd.Source)"
+            } else {
+              Write-Warning "  $t not found in PATH"
+            }
+          }
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -94,7 +107,7 @@ jobs:
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
-          call "%vsRoot%\VC\Auxiliary\Build\vcvars64.bat" amd64
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
 
           rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
@@ -120,8 +133,10 @@ jobs:
           rem 5. 调用 configure
           call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
-            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre ^
-            -qt-freetype -schannel -platform win32-msvc
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
+            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -schannel -platform win32-msvc ^
+            -- -Wno-dev 
 
           rem 6. Build & Install
           cmake --build . --parallel
@@ -130,10 +145,10 @@ jobs:
       - name: Package ${{ matrix.config }}
         shell: cmd
         env:
-          CONFIG: ${{ matrix.config }}  # 显式传递环境变量
+          CONFIG: ${{ matrix.config }}
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
-          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-win-msvc2022-%CONFIG%.7z" ^
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-shared-win-msvc2022-%CONFIG%.7z" ^
             "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
 
       - name: Create Tag if not exists
@@ -189,7 +204,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${{ env.QT_VERSION }}-win-msvc2022-${{ matrix.config }}.7z"
+          ASSET="qt-${{ env.QT_VERSION }}-shared-win-msvc2022-${{ matrix.config }}.7z"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
