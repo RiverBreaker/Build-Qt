@@ -129,28 +129,39 @@ jobs:
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
-      - name: Compute short path for PostgreSQL
+      - name: Compute short paths for PostgreSQL & LLVM
         shell: pwsh
         run: |
-          # 1. 找到 Program Files 下 PostgreSQL 子目录，按版本号降序取最新一个
+          # helper: 用 cmd /c for %~sI 拿 8.3 短路径，并把 "\" 换成 "/"
+          function Get-ShortSlashPath($path) {
+            $short = (cmd /c "for %I in (`"$path`") do @echo %~sI").Trim()
+            return $short -replace '\\','/'
+          }
+
+          # 1. PostgreSQL
           $pgBase = Join-Path $Env:ProgramFiles 'PostgreSQL'
           if (!(Test-Path $pgBase)) {
             Write-Error "PostgreSQL base directory not found: $pgBase"
             exit 1
           }
-          $latest = Get-ChildItem -Path $pgBase -Directory |
-                    Sort-Object Name -Descending |
-                    Select-Object -First 1
-          $pgRoot = $latest.FullName
-          
-          # 2. 用 cmd %~sI 转为 8.3 短路径
-          $short = (cmd /c "for %I in (`"$pgRoot`") do @echo %~sI").Trim()
-          Write-Host "Detected PostgreSQL path: $pgRoot"
-          Write-Host "Short 8.3 path: $short"
-          
-          # 3. 导出 include 路径到环境变量
-          echo "PG_INCLUDE=$short\include" >> $Env:GITHUB_ENV
-          echo "PG_INCLUDE_SERVER=$short\include\server" >> $Env:GITHUB_ENV
+          $pgVer = Get-ChildItem -Path $pgBase -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $pgRoot = $pgVer.FullName
+          $pgShort = Get-ShortSlashPath $pgRoot
+          Write-Host "PostgreSQL detected: $pgRoot"
+          Write-Host "PostgreSQL short path: $pgShort"
+          echo "PG_INCLUDE=$pgShort/include" >> $Env:GITHUB_ENV
+          echo "PG_INCLUDE_SERVER=$pgShort/include/server" >> $Env:GITHUB_ENV
+
+          # 2. LLVM (Chocolatey 默认装在 C:\Program Files\LLVM)
+          $llvmDir = Join-Path $Env:ProgramFiles 'LLVM'
+          if (Test-Path $llvmDir) {
+            $llvmShort = Get-ShortSlashPath $llvmDir
+            Write-Host "LLVM detected: $llvmDir"
+            Write-Host "LLVM short path: $llvmShort"
+            echo "LLVM_INSTALL_DIR=$llvmShort" >> $Env:GITHUB_ENV
+          } else {
+            Write-Warning "LLVM not found under Program Files."
+          }
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
@@ -185,7 +196,7 @@ jobs:
             -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -DLLVM_INSTALL_DIR="%LLVM_INSTALL_DIR%" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -DPostgreSQL_INCLUDE_DIR="%PG_INCLUDE%" ^
             -DPostgreSQL_INCLUDE_DIR_SERVER="%PG_INCLUDE_SERVER%" ^
             -schannel -platform win32-g++ ^
