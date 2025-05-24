@@ -1,10 +1,10 @@
-name: Build Qt 6.x.x -shared (Windows LLVM-Mingw64v1706)(6.6.0以上)
+name: Build Qt 6.x.x -shared (Windows LLVM-Mingw64v1706)
 
 on:
   workflow_dispatch:
     inputs:
       qt_majmin:
-        description: 'Qt 主版本号与次版本号（例如 6.9 (6.6.0以上)）'
+        description: 'Qt 主版本号与次版本号(>=6.6.0)'
         required: true
         default: '6.9'
       qt_patch:
