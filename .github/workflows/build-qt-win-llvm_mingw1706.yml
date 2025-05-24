@@ -1,0 +1,241 @@
+name: Build Qt 6.x.x(6.6.0以上) -shared (Windows Mingw64v1310)
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号（例如 6.9）'
+        required: true
+        default: '6.9'
+      qt_patch:
+        description: 'Qt 补丁版本号（例如 0），默认 0'
+        required: false
+        default: '0'
+      
+      
+jobs:
+  build-qt:
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (Mingw64)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      QT_LLVM_MINGW_URL: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # 安装python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-windows
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: Install build tools via Chocolatey
+        shell: pwsh
+        run: |
+          choco install -y cmake ninja 7zip openssl llvm gperf `
+            --no-progress `
+            --limit-output
+
+          # 2. 输出各工具安装路径
+          Write-Host ""
+          Write-Host "🔍 Installed tool locations:"
+          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          foreach ($t in $tools) {
+            $cmd = Get-Command $t -ErrorAction SilentlyContinue
+            if ($cmd) {
+              Write-Host "  $t -> $($cmd.Source)"
+            } else {
+              Write-Warning "  $t not found in PATH"
+            }
+          }
+
+      - name: Install Mingw64
+        shell: pwsh
+        run: |
+          $extractRoot = "$Env:RUNNER_TEMP\llvm-mingw64"
+
+          function Add-MingwToPath($zipUrl, $dest) {
+            $zip = "$Env:RUNNER_TEMP\llvm-mingw.7z"
+            Write-Host "Downloading: $zipUrl"
+            Invoke-WebRequest -Uri $zipUrl -OutFile $zip
+
+            Write-Host "Extracting to: $dest"
+            7z x $zip -o"$dest" -y | Out-Null
+
+            # 自动发现 Tools 下的版本号文件夹
+            $toolsDir = Join-Path $dest 'Tools'
+            if (!(Test-Path $toolsDir)) {
+              throw "Tools directory not found: $toolsDir"
+            }
+
+            $subDir = Get-ChildItem -Path $toolsDir -Directory | Select-Object -First 1
+            if ($null -eq $subDir) {
+              throw "No subdirectory found under $toolsDir"
+            }
+
+            $binPath = Join-Path $subDir.FullName 'bin'
+            if (!(Test-Path $binPath)) {
+              throw "Bin path not found: $binPath"
+            }
+
+            Write-Host "LLVM Mingw bin path: $binPath"
+            # 写入环境变量
+            echo "LLVM_MINGW_BIN=$binPath" >> $Env:GITHUB_ENV
+            echo $binPath | Out-File -FilePath $Env:GITHUB_PATH -Append
+          }
+
+          # 调用统一函数
+          Add-MingwToPath $Env:QT_LLVM_MINGW_URL $extractRoot
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+
+      - name: Prepare build directory
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
+
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          set "PATH=%LLVM_MINGW_BIN%;%PATH%"
+
+          rem 2. 设置路径
+          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
+          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
+          set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
+
+          rem 3. 清理/创建
+          if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
+          mkdir "%INSTALL_DIR%" 2>nul
+          mkdir "%ARTIFACTS_DIR%" 2>nul
+
+          rem 4. 选择模式
+          if /I "%CONFIG%"=="Debug" (
+            set MODE=-debug
+          ) else if /I "%CONFIG%"=="Release" (
+            set MODE=-release
+          ) else (
+            set MODE=-debug-and-release
+          )
+
+          rem 5. 调用 configure
+          call "%SRC_QT%\configure.bat" ^
+            -shared %MODE% -prefix "%INSTALL_DIR%" ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
+            -schannel -platform win32-clang-g++ -- -Wno-dev  ^
+            
+          rem 6. Build & Install
+          cmake --build . --parallel
+          ninja install
+
+      - name: Package ${{ matrix.config }}
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+          LLVM_VERSION: llvm-mingw17.0.6_64
+        run: |
+          if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
+          7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-shared-win-${{ env.LLVM_VERSION }}-%CONFIG%.7z" ^
+            "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
+
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          REPO:       ${{ github.repository }}
+          TAG:        v${{ env.QT_VERSION }}-shared
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 1. 检查本地是否已存在 TAG
+          $localExists = (git tag --list $env:TAG) -ne ""
+          if ($localExists) {
+            Write-Host "Local tag $TAG already exists, skip creation."
+          } else {
+            # 2. 检查远程是否已存在 TAG
+            $remoteTags = git ls-remote --tags origin $env:TAG
+            if ($remoteTags) {
+              Write-Host "Remote tag $TAG already exists, skip creation."
+            } else {
+              # 3. 本地＆远程都不存在时，创建并推送
+              git tag "$env:TAG"
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              Write-Host "Tag $TAG created and pushed."
+            }
+          }
+
+      - name: Ensure Release exists or create
+        id: ensure_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          # 查看是否已有该 tag 对应的 Release
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "Qt $TAG Windows Builds" \
+              --notes "Automated build of Qt $TAG for Windows" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLVM_VERSION: llvm-mingw17.0.6_64
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          ASSET="qt-${{ env.QT_VERSION }}-shared-win-${{ env.LLVM_VERSION }}-${{ matrix.config }}.7z"
+          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          if [ -f "$FILE" ]; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            echo "文件未找到，跳过上传：$FILE"
+          fi
