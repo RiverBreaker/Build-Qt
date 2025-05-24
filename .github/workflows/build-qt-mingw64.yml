@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x(v6.6.0 以上) -shared (Windows Mingw64v1310)
+name: Build Qt 6.x.x(6.6.0以上) -shared (Windows Mingw64v1310)
 
 on:
   workflow_dispatch:
@@ -129,6 +129,29 @@ jobs:
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
+            - name: Compute short path for PostgreSQL
+        shell: pwsh
+        run: |
+          # 1. 找到 Program Files 下 PostgreSQL 子目录，按版本号降序取最新一个
+          $pgBase = Join-Path $Env:ProgramFiles 'PostgreSQL'
+          if (!(Test-Path $pgBase)) {
+            Write-Error "PostgreSQL base directory not found: $pgBase"
+            exit 1
+          }
+          $latest = Get-ChildItem -Path $pgBase -Directory |
+                    Sort-Object Name -Descending |
+                    Select-Object -First 1
+          $pgRoot = $latest.FullName
+          
+          # 2. 用 cmd %~sI 转为 8.3 短路径
+          $short = (cmd /c "for %I in (`"$pgRoot`") do @echo %~sI").Trim()
+          Write-Host "Detected PostgreSQL path: $pgRoot"
+          Write-Host "Short 8.3 path: $short"
+          
+          # 3. 导出 include 路径到环境变量
+          echo "PG_INCLUDE=$short\include" >> $Env:GITHUB_ENV
+          echo "PG_INCLUDE_SERVER=$short\include\server" >> $Env:GITHUB_ENV
+
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
         env:
@@ -161,11 +184,12 @@ jobs:
           call "%SRC_QT%\configure.bat" ^
             -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
-            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre ^
-            -qt-freetype -schannel -platform win32-g++ ^
-            -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=TRUE ^
-            -DPostgreSQL_INCLUDE_DIR="C:/Progra~1/PostgreSQL/14/include" ^
-            -DPostgreSQL_INCLUDE_DIR_SERVER="C:/Progra~1/PostgreSQL/14/include/server"
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
+            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -DPostgreSQL_INCLUDE_DIR="%PG_INCLUDE%" ^
+            -DPostgreSQL_INCLUDE_DIR_SERVER="%PG_INCLUDE_SERVER%" ^
+            -schannel -platform win32-g++ ^
+            -- -Wno-dev
 
           rem 6. Build & Install
           cmake --build . --parallel
