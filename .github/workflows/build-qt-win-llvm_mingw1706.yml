@@ -60,14 +60,14 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y cmake ninja 7zip openssl llvm gperf `
+          choco install -y cmake ninja 7zip openssl gperf `
             --no-progress `
             --limit-output
 
           # 2. 输出各工具安装路径
           Write-Host ""
           Write-Host "🔍 Installed tool locations:"
-          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          $tools = @('cmake', 'ninja', '7z', 'openssl', 'gperf')
           foreach ($t in $tools) {
             $cmd = Get-Command $t -ErrorAction SilentlyContinue
             if ($cmd) {
