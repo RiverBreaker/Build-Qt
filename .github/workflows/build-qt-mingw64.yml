@@ -129,7 +129,7 @@ jobs:
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
-            - name: Compute short path for PostgreSQL
+      - name: Compute short path for PostgreSQL
         shell: pwsh
         run: |
           # 1. 找到 Program Files 下 PostgreSQL 子目录，按版本号降序取最新一个
