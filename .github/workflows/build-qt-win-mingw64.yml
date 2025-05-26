@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -shared (Windows Mingw64v1310)
+name: Build Qt 6.x.x -static (Windows Mingw64v1310)
 
 on:
   workflow_dispatch:
