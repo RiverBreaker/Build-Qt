@@ -139,8 +139,10 @@ jobs:
             -- -Wno-dev 
 
           rem 6. Build & Install
-          cmake --build . --parallel
-          ninja install
+          cmake --build . \
+            --config RelWithDebInfo \
+            --target install \
+            -- /m
 
       - name: Package ${{ matrix.config }}
         shell: cmd
