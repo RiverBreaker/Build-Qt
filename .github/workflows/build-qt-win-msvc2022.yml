@@ -139,10 +139,7 @@ jobs:
             -- -Wno-dev 
 
           rem 6. Build & Install
-          cmake --build . \
-            --config ${{ matrix.config }} \
-            --target install \
-            -- /m
+          cmake --build . --config %CONFIG% --target install -- /m
 
       - name: Package ${{ matrix.config }}
         shell: cmd
