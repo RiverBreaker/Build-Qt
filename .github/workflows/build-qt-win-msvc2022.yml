@@ -140,7 +140,7 @@ jobs:
 
           rem 6. Build & Install
           cmake --build . \
-            --config RelWithDebInfo \
+            --config ${{ matrix.config }} \
             --target install \
             -- /m
 
