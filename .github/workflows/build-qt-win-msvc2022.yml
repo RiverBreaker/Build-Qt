@@ -205,9 +205,14 @@ jobs:
         run: |
           TAG="v${{ env.QT_VERSION }}-static"
           ASSET="qt-${{ env.QT_VERSION }}-static-win-msvc2022-${{ matrix.config }}.7z"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          RUNNER_TEMP_WIN=$(echo "$RUNNER_TEMP" | sed 's/\\/\//g')
+          FILE="$RUNNER_TEMP_WIN/artifacts/$ASSET"
+          echo "检查文件: $FILE"
           if [ -f "$FILE" ]; then
+            echo "文件存在，准备上传"
             gh release upload "$TAG" "$FILE" --clobber
           else
             echo "文件未找到，跳过上传：$FILE"
+            # 列出目录内容以便调试
+            ls -la "$RUNNER_TEMP_WIN/artifacts/" || echo "无法访问目录"
           fi
