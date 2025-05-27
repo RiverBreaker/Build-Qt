@@ -136,11 +136,11 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
-            -cmake-generator "Visual Studio 17 2022" ^
+            -cmake-generator "Ninja Multi-Config" ^
             -- -Wno-dev 
 
           rem 6. Build & Install
-          cmake --build . --config %CONFIG% --target install -- /m
+          cmake --build . --config %CONFIG% --target install
 
       - name: Package ${{ matrix.config }}
         shell: cmd
