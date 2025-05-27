@@ -139,7 +139,7 @@ jobs:
             -- -Wno-dev 
 
           rem 6. Build & Install
-          cmake --build . --config %CONFIG%
+          cmake --build . --config %CONFIG% --parallel 2 -- -DCMAKE_CXX_FLAGS="/Zf /FS"
           ninja install
 
       - name: Package ${{ matrix.config }}
