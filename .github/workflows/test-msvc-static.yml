@@ -143,14 +143,27 @@ jobs:
           ninja install
 
       - name: Package ${{ matrix.config }}
-        shell: cmd
+        shell: pwsh
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          if not exist "%RUNNER_TEMP%\\artifacts" mkdir "%RUNNER_TEMP%\\artifacts"
-          rem 使用 -v2g 分卷压缩，每个卷大小不超过2GB
-          7z a -t7z -v2g "%RUNNER_TEMP%\\artifacts\\qt-${{ env.QT_VERSION }}-static-win-msvc2022-%CONFIG%.7z" ^
-            "%RUNNER_TEMP%\\qt-${{ env.QT_VERSION }}\\%CONFIG%" -mmt=on -bsp1
+          $src = "$Env:RUNNER_TEMP/qt-${{ env.QT_VERSION }}/$Env:CONFIG\*"
+          $dstDir = "$Env:RUNNER_TEMP/artifacts"
+          New-Item -Path $dstDir -ItemType Dir -Force | Out-Null
+
+          $base = "qt-${{ env.QT_VERSION }}-static-win-msvc2022-$Env:CONFIG"
+          $single = "$dstDir\$base.7z"
+          $limit = 1950MB
+
+          # 1) 先打单包
+          7z a $single $src -mmt=on -bsp1 | Out-Null
+          $size = (Get-Item $single).Length
+
+          # 2) 超限则分卷
+          if ($size -gt $limit) {
+            Remove-Item $single -Force
+            7z a $single $src -mmt=on -bsp1 -v1950m | Out-Null
+          }
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/static'
@@ -200,14 +213,21 @@ jobs:
           fi
 
       - name: Upload build artifacts
-        shell: bash
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          CONFIG: ${{ matrix.config }}
         run: |
-          TAG="v${{ env.QT_VERSION }}-static"
-          # 上传所有分卷文件
-          for file in "$RUNNER_TEMP"/artifacts/qt-${{ env.QT_VERSION }}-static-win-msvc2022-${{ matrix.config }}.7z*; do
-            if [ -f "$file" ]; then
-              gh release upload "$TAG" "$file" --clobber
-            fi
-          done
+          $tag = "v${{ env.QT_VERSION }}-static"
+          $dst = "$Env:RUNNER_TEMP/artifacts"
+          $base = "qt-${{ env.QT_VERSION }}-static-win-msvc2022-$Env:CONFIG"
+
+          # 根据是否有分卷自动上传
+          $parts = Get-ChildItem "$dst\$base.7z.*" -ErrorAction SilentlyContinue
+          if ($parts) {
+            $parts | Where Length -GT 0 | ForEach { gh release upload $tag $_.FullName --clobber }
+          }
+          elseif (Test-Path "$dst\$base.7z") {
+            $f = Get-Item "$dst\$base.7z"
+            if ($f.Length -gt 0) { gh release upload $tag $f.FullName --clobber }
+          }
