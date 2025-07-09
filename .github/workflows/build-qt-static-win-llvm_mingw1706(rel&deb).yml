@@ -168,7 +168,7 @@ jobs:
           ninja install
 
       - name: Package ${{ matrix.config }}
-        shell: cmd
+        shell: pesh
         env:
           CONFIG: ${{ matrix.config }}
           MINGW64_VERSION: mingw1310_x64
