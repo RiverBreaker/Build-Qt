@@ -178,7 +178,7 @@ jobs:
           }
 
       - name: Create Tag if not exists
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/static'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
