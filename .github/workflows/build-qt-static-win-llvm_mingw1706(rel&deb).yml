@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Rel&Deb -static (Windows LLVM-Mingw64v1706)
+name: Build Qt 6.x.x -Release -static (Windows LLVM-Mingw64v1706)
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [Debug, Release]
+        config: [Release]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -189,6 +189,18 @@ jobs:
           if ($size -gt $limit) {
             Remove-Item $single -Force
             7z a $single $src -mmt=on -bsp1 -v1950m | Out-Null
+          }
+
+      # 新增：打包完成后清理对应 BUILD_DIR
+      - name: Clean build directory for ${{ matrix.config }}
+        shell: pwsh
+        run: |
+          $buildDir = "$Env:RUNNER_TEMP\build-${{ matrix.config }}"
+          if (Test-Path $buildDir) {
+            Write-Host "Removing build directory: $buildDir"
+            Remove-Item -Recurse -Force $buildDir
+          } else {
+            Write-Host "Build directory not found, skipping cleanup."
           }
 
       - name: Create Tag if not exists
