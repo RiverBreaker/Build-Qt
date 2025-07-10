@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Rel&Deb -static (Windows Mingw64)
+name: Build Qt 6.x.x -Release -static (Windows Mingw64)
 
 on:
   workflow_dispatch:
