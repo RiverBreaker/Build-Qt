@@ -173,7 +173,7 @@ jobs:
           $dstDir = "$Env:RUNNER_TEMP/artifacts"
           New-Item -Path $dstDir -ItemType Dir -Force | Out-Null
 
-          $base = "qt-${{ env.QT_VERSION }}-static-win-msvc2022-$Env:CONFIG"
+          $base = "qt-${{ env.QT_VERSION }}-static-win-mingw64_1310-$Env:CONFIG"
           $single = "$dstDir\$base.7z"
           $limit = 1950MB
 
@@ -248,7 +248,7 @@ jobs:
         run: |
           $tag = "v${{ env.QT_VERSION }}-static"
           $dst = "$Env:RUNNER_TEMP/artifacts"
-          $base = "qt-${{ env.QT_VERSION }}-static-win-msvc2022-$Env:CONFIG"
+          $base = "qt-${{ env.QT_VERSION }}-static-win-mingw64_1310-$Env:CONFIG"
 
           # 根据是否有分卷自动上传
           $parts = Get-ChildItem "$dst\$base.7z.*" -ErrorAction SilentlyContinue
