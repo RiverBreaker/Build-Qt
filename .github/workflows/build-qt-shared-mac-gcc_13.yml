@@ -97,10 +97,10 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          # ── 修复 Windows CRLF 行尾，避免 /bin/sh^M 错误 ──
-          echo "Fixing line endings in configure script..."
-          # 仅转换 configure 脚本
-          sed -i '' -e 's/\r$//' "$SRC_QT/configure"
+          # ── 修复所有 configure 脚本的 CRLF 行尾，避免 /bin/sh^M 错误 ──
+          echo "Fixing line endings in all configure scripts..."
+          find "$SRC_QT" -type f -name configure \
+            -exec sed -i '' -e 's/\r$//' {} \;
 
           # 设置编译器（使用 Homebrew 安装的 gcc/g++）
           export CC=gcc-13
