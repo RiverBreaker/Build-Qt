@@ -103,11 +103,11 @@ jobs:
             -exec sed -i '' -e 's/\r$//' {} \;
 
           # 设置编译器（使用 Homebrew 安装的 gcc/g++）
-          export CC=gcc-13
-          export CXX=g++-13
+          export CC=/opt/homebrew/bin/gcc-13
+          export CXX=/opt/homebrew/bin/g++-13
 
-          # 调用 configure
-          "$SRC_QT/configure" -platform macx-g++ \
+          # 调用 configure -platform macx-g++
+          "$SRC_QT/configure"  \
             -shared $MODE -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
