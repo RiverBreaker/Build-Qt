@@ -65,9 +65,12 @@ jobs:
           ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
-          echo "📂 Extracting .tar.xz → .tar → source..."
-          7z x "$ARCHIVE" -so | 7z x -si -ttar -y -o"$RUNNER_TEMP/qt6_src"
-          echo "✅ Extraction complete: $RUNNER_TEMP/qt6_src"
+          echo "📂 Extracting .tar.xz via tar..."
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
+          # -x: extract; -J: .xz; -f: file; -C: target dir
+          tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
+          echo "✅ Extraction complete: $TARGET_DIR"
 
       - name: Prepare build directory
         shell: bash
@@ -108,19 +111,19 @@ jobs:
           cmake --build . --parallel
           cmake --install .
 
-      - name: Package ${{ matrix.config }}
+      - name: Package ${{ matrix.config }} as tar.gz
         shell: bash
         env:
           CONFIG: ${{ matrix.config }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifacts"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_x64-${CONFIG}.tar.gz"
-          echo "📦 Packaging $CONFIG into $ASSET via 7z..."
+          echo "📦 Packaging $CONFIG into $ASSET via tar..."
+          # 切换到包含 CONFIG 子目录的父目录
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          # 先用 7z 打包成 tar（输出到 stdout），再通过管道压缩成 gzip 格式
-          7z a -ttar -so "$CONFIG" \
-            | 7z a -si -tgzip "$RUNNER_TEMP/artifacts/$ASSET"
-          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET" -mmt=on -bsp1
+          # -c: create, -z: gzip, -f: filename, -C: change dir
+          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
+          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET"
 
 
       - name: Create Tag if not exists
