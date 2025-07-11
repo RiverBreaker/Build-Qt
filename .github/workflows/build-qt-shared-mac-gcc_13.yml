@@ -1,0 +1,175 @@
+name: Build Qt 6.x.x -shared for macOS (GCC_13)
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号(>=6.6.0)'
+        required: true
+        default: '6.9'
+      qt_patch:
+        description: 'Qt 补丁版本号（例如 0），默认 0'
+        required: false
+        default: '0'
+      
+jobs:
+  build-qt:
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for macOS
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-macos
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: Install build tools via Homebrew
+        shell: bash
+        run: |
+          echo "🔧 Installing build tools via Homebrew..."
+          brew update
+          brew install cmake ninja p7zip openssl gperf gcc@13
+          echo "🔍 Installed tool locations:"
+          for tool in cmake ninja 7z openssl gcc-13; do
+            which $tool || echo "$tool not found in PATH"
+          done
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ZIP="$RUNNER_TEMP/qt6.zip"
+          curl -L -o "$ZIP" "$QT_SOURCE_URL"
+          echo "Extracting Qt sources..."
+          7z x "$ZIP" -y -o"$RUNNER_TEMP/qt6_src"
+
+      - name: Prepare build directory
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/build"
+          mkdir -p "$RUNNER_TEMP/build"
+
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
+          mkdir -p "$INSTALL_DIR"
+          mkdir -p "$ARTIFACTS_DIR"
+
+          # 选择模式
+          if [[ "$CONFIG" == "Debug" ]]; then
+            MODE="-debug"
+          elif [[ "$CONFIG" == "Release" ]]; then
+            MODE="-release"
+          else
+            MODE="-release -force-debug-info"
+          fi
+
+          # 设置编译器（使用 Homebrew 安装的 gcc/g++）
+          export CC=gcc-13
+          export CXX=g++-13
+
+          # 调用 configure
+          "$SRC_QT/configure" -shared $MODE -prefix "$INSTALL_DIR" \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-framework
+          # 构建并安装
+          cmake --build . --parallel
+          cmake --install .
+
+      - name: Package ${{ matrix.config }}
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
+          MACOS_VERSION: macos-latest
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          ASSET="qt-${QT_VERSION}-shared-macos-${MACOS_VERSION}-${CONFIG}.7z"
+          7z a "$RUNNER_TEMP/artifacts/$ASSET" "$RUNNER_TEMP/qt-${QT_VERSION}/${CONFIG}" -mmt=on -bsp1
+
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          REPO:      ${{ github.repository }}
+          TAG:       v${{ env.QT_VERSION }}-shared
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 检查 TAG 是否已存在
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Local tag $TAG already exists, skip."
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Remote tag $TAG already exists, skip."
+          else
+            git tag "$TAG"
+            git push "https://x-access-token:$PAT_TOKEN@github.com/$REPO" "$TAG"
+            echo "Tag $TAG created and pushed."
+          fi
+
+      - name: Ensure Release exists or create
+        id: ensure_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "Qt $TAG macOS Builds" \
+              --notes "Automated build of Qt $TAG for macOS" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_VERSION: macos-latest
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          ASSET="qt-${{ env.QT_VERSION }}-shared-macos-${{ env.MACOS_VERSION }}-${{ matrix.config }}.7z"
+          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          if [ -f "$FILE" ]; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            echo "文件未找到，跳过上传：$FILE"
+          fi
