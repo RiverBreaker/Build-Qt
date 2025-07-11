@@ -170,6 +170,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CONFIG: ${{ matrix.config }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_x64-${CONFIG}.tar.gz"
