@@ -160,8 +160,8 @@ jobs:
           else
             echo "found=new" >> $GITHUB_OUTPUT
             gh release create "$TAG" \
-              --title "Qt $TAG macOS Builds" \
-              --notes "Automated build of Qt $TAG for macOS" \
+              --title "Qt $TAG Auto Builds" \
+              --notes "Automated build of Qt $TAG" \
               --draft=false \
               --prerelease=false
           fi
