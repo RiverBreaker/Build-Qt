@@ -107,7 +107,8 @@ jobs:
           export CXX=g++-13
 
           # 调用 configure
-          "$SRC_QT/configure" -shared $MODE -prefix "$INSTALL_DIR" \
+          "$SRC_QT/configure" -platform macx-g++ \
+            -shared $MODE -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework
