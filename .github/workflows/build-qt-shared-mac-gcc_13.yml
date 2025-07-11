@@ -66,7 +66,7 @@ jobs:
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz → .tar → source..."
-          7z x "$ARCHIVE" -so | 7z x -si -ttar -o"$RUNNER_TEMP/qt6_src"
+          7z x "$ARCHIVE" -so | 7z x -si -ttar -y -o"$RUNNER_TEMP/qt6_src"
           echo "✅ Extraction complete: $RUNNER_TEMP/qt6_src"
 
       - name: Prepare build directory
