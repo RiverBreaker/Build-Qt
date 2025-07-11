@@ -28,7 +28,7 @@ jobs:
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
-      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
 
     steps:
       - name: Checkout repository
@@ -52,9 +52,9 @@ jobs:
         run: |
           echo "🔧 Installing build tools via Homebrew..."
           brew update
-          brew install cmake ninja p7zip openssl gperf gcc@13
+          brew install cmake ninja p7zip openssl gperf
           echo "🔍 Installed tool locations:"
-          for tool in cmake ninja 7z openssl gcc-13; do
+          for tool in cmake ninja 7z openssl; do
             which $tool || echo "$tool not found in PATH"
           done
 
@@ -62,10 +62,12 @@ jobs:
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          ZIP="$RUNNER_TEMP/qt6.zip"
-          curl -L -o "$ZIP" "$QT_SOURCE_URL"
-          echo "Extracting Qt sources..."
-          7z x "$ZIP" -y -o"$RUNNER_TEMP/qt6_src"
+          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
+          echo "📦 Downloading Qt source archive..."
+          curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
+          echo "📂 Extracting .tar.xz → .tar → source..."
+          7z x "$ARCHIVE" -so | 7z x -si -ttar -o"$RUNNER_TEMP/qt6_src"
+          echo "✅ Extraction complete: $RUNNER_TEMP/qt6_src"
 
       - name: Prepare build directory
         shell: bash
@@ -97,18 +99,8 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          # ── 修复所有 configure 脚本的 CRLF 行尾，避免 /bin/sh^M 错误 ──
-          echo "Fixing line endings in all configure scripts..."
-          find "$SRC_QT" -type f -name configure \
-            -exec sed -i '' -e 's/\r$//' {} \;
-
-          # 设置编译器（使用 Homebrew 安装的 gcc/g++）
-          export CC=/opt/homebrew/bin/gcc-13
-          export CXX=/opt/homebrew/bin/g++-13
-
-          # 调用 configure -platform macx-g++
-          "$SRC_QT/configure"  \
-            -shared $MODE -prefix "$INSTALL_DIR" \
+          # 调用 configure
+          "$SRC_QT/configure" -shared $MODE -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework
@@ -120,11 +112,16 @@ jobs:
         shell: bash
         env:
           CONFIG: ${{ matrix.config }}
-          MACOS_VERSION: macos-latest
         run: |
           mkdir -p "$RUNNER_TEMP/artifacts"
-          ASSET="qt-${QT_VERSION}-shared-macos-${MACOS_VERSION}-${CONFIG}.7z"
-          7z a "$RUNNER_TEMP/artifacts/$ASSET" "$RUNNER_TEMP/qt-${QT_VERSION}/${CONFIG}" -mmt=on -bsp1
+          ASSET="qt-${QT_VERSION}-shared-mac-clang_x64-${CONFIG}.tar.gz"
+          echo "📦 Packaging $CONFIG into $ASSET via 7z..."
+          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
+          # 先用 7z 打包成 tar（输出到 stdout），再通过管道压缩成 gzip 格式
+          7z a -ttar -so "$CONFIG" \
+            | 7z a -si -tgzip "$RUNNER_TEMP/artifacts/$ASSET"
+          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET" -mmt=on -bsp1
+
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -169,10 +166,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          MACOS_VERSION: macos-latest
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${{ env.QT_VERSION }}-shared-macos-${{ env.MACOS_VERSION }}-${{ matrix.config }}.7z"
+          ASSET="qt-${QT_VERSION}-shared-mac-clang_x64-${CONFIG}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
