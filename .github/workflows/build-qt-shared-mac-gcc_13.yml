@@ -44,7 +44,7 @@ jobs:
         id: cache-qt-source
         uses: actions/cache@v3
         with:
-          key: qt-src-${{ env.QT_VERSION }}-macos
+          key: qt-src-${{ env.QT_VERSION }}-Unix
           path: ${{ runner.temp }}/qt6_src
 
       - name: Install build tools via Homebrew
