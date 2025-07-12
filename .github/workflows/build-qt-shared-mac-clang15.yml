@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -shared for macOS (GCC_13)
+name: Build Qt 6.x.x -shared for macOS (Clang15)
 
 on:
   workflow_dispatch:
