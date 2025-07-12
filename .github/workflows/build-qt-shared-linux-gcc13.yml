@@ -76,6 +76,7 @@ jobs:
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
           ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
