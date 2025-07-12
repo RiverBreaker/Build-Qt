@@ -52,14 +52,11 @@ jobs:
         run: |
           sudo apt-get update
           # 安装指定版本的 GCC/G++ 13 以及其他构建工具
-          sudo apt-get -y install \
-           gcc-13 g++-13 \                        # GCC 13
-           cmake ninja-build \                   # CMake & Ninja
-           libssl-dev gperf xz-utils \           # 原有依赖
-           libgl1-mesa-dev libglu1-mesa-dev \    # OpenGL 开发包
-           libx11-dev libxext-dev libxcb1-dev \  # X11 依赖
-           libglu1-mesa-dev libegl1-mesa-dev \   # Mesa EGL
-           protobuf-compiler libprotobuf-dev     # Protobuf & protoc
+          sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
+           libssl-dev gperf xz-utils \
+           libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
+           libx11-dev libxext-dev libxcb1-dev \
+           protobuf-compiler libprotobuf-dev
           echo "🔍 工具位置："
           for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
           # 设置默认 gcc / g++ 指向版本 13
