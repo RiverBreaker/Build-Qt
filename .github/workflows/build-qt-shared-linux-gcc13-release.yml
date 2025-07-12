@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -shared for Linux (GCC13)
+name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
 
 on:
   workflow_dispatch:
