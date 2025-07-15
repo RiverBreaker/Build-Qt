@@ -157,11 +157,18 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel -platform win32-g++ ^
-            -- -Wno-dev -D CMAKE_AUTOGEN_CONFIG_DEPENDS=ON
+            -G "Ninja Multi-Config" ^
+            -- -Wno-dev
 
-          rem 6. 编译并安装
-          cmake --build . --parallel
-          ninja install
+          rem 6. 分两步构建+安装
+
+          rem —— Release
+          cmake --build . --parallel --config Release
+          cmake --build . --parallel --config Release --target install
+
+          rem —— Debug
+          cmake --build . --parallel --config Debug
+          cmake --build . --parallel --config Debug --target install
 
       - name: Package ${{ matrix.config }}
         shell: pwsh
