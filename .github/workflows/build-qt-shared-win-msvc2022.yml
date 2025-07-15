@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       qt_majmin:
-        description: 'Qt 主版本号与次版本号（例如 6.9 必须>=6.7）'
+        description: 'Qt 主版本号与次版本号(>=6.7.0)'
         required: true
         default: '6.9'
       qt_patch:
-        description: 'Qt 补丁版本号（例如 0），默认 0'
+        description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
       
@@ -139,7 +139,7 @@ jobs:
             -platform win32-msvc ^
             -- -Wno-dev
 
-          rem 7. 构建 & 安装
+          rem 6. 构建 & 安装
           cmake --build . --parallel
           ninja install
 

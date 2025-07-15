@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       qt_majmin:
-        description: 'Qt 主版本号与次版本号(>=6.6.0)'
+        description: 'Qt 主版本号与次版本号(>=6.7)'
         required: true
         default: '6.9'
       qt_patch:
-        description: 'Qt 补丁版本号（例如 0），默认 0'
+        description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
             
@@ -162,18 +162,11 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel ^
-            -G "Ninja Multi-Config" ^
             -- -Wno-dev
             
-          rem 6. 分两步构建+安装
-
-          rem —— Release
-          cmake --build . --parallel --config Release
-          cmake --build . --parallel --config Release --target install
-
-          rem —— Debug
-          cmake --build . --parallel --config Debug
-          cmake --build . --parallel --config Debug --target install
+          rem 6. 构建 & 安装
+          cmake --build . --parallel
+          ninja install
 
       - name: Package ${{ matrix.config }}
         shell: pwsh
