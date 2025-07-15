@@ -135,7 +135,7 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
-            -schannel -no-pch ^
+            -schannel ^
             -platform win32-msvc ^
             -- -Wno-dev
 
