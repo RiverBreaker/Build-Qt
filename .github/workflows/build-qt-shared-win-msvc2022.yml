@@ -130,35 +130,17 @@ jobs:
             set MODE=-debug-and-release
           )
 
-          rem 5. 选择 Generator
-          if "%MODE%"=="-debug-and-release" (
-            set GEN=Ninja Multi-Config
-          ) else (
-            set GEN=Ninja
-          )
-
           rem 5. 调用 configure
           call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
-            -nomake examples -nomake tests -skip qtwebengine -opensource ^
+            -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
-            -cmake-generator "%GEN%" ^
             -- -Wno-dev
 
           rem 7. 构建 & 安装
-          if "%MODE%"=="-debug-and-release" (
-            rem —— Multi-Config 下分别构建安装
-            cmake --build . --parallel --config Release
-            cmake --build . --config Release --target install
-
-            cmake --build . --parallel --config Debug
-            cmake --build . --config Debug --target install
-          ) else (
-            rem —— 单配置 Ninja 直接安装
-            cmake --build . --parallel
-            ninja install
-          )
+          cmake --build . --parallel
+          ninja install
 
       - name: Package ${{ matrix.config }}
         shell: cmd
