@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       qt_majmin:
-        description: 'Qt 主版本号与次版本号（例如 6.9）'
+        description: 'Qt 主版本号与次版本号（例如 6.9 必须>=6.7）'
         required: true
         default: '6.9'
       qt_patch:
