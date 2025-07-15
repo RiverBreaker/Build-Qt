@@ -162,8 +162,8 @@ jobs:
             -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -schannel -- -Wno-dev  ^
-            
+            -schannel -- -Wno-dev -D CMAKE_AUTOGEN_CONFIG_DEPENDS=ON
+
           rem 6. Build & Install
           cmake --build . --parallel
           ninja install
