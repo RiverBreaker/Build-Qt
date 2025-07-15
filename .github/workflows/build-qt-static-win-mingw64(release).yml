@@ -28,7 +28,7 @@ jobs:
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-static
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
-      QT_SOURCE_URL: https://download.qt.io/official_releases/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
       QT_MINGW_URL: https://mirror.ossplanet.net/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_mingw1310/qt.tools.win64_mingw1310/13.1.0-202407240918mingw1310.7z
 
     steps:
