@@ -136,18 +136,10 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
-            -cmake-generator "Ninja Multi-Config" ^
+            -cmake-generator "Ninja" ^
             -- -Wno-dev
 
-          rem 6. 分两步构建+安装
-
-          rem —— Release
-          cmake --build . --parallel --config Release
-          cmake --build . --parallel --config Release --target install
-
-          rem —— Debug
-          cmake --build . --parallel --config Debug
-          cmake --build . --parallel --config Debug --target install
+          ninja install
 
       - name: Package ${{ matrix.config }}
         shell: cmd
