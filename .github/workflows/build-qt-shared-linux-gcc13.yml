@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [Debug, Release, RelWithDebInfo]
+        config: [Release]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -112,12 +112,14 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -prefix "$INSTALL_DIR" \
+          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports -gc-binaries \
+            -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql -- -Wno-dev -DQT_FEATURE_precompile_headers=OFF
+            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
 
-          cmake --build . --parallel
+          cmake --build . --parallel 2
           cmake --install .
 
       - name: Package ${{ matrix.config }} as tar.gz
