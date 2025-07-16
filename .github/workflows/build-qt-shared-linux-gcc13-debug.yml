@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [Release]
+        config: [Debug]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
