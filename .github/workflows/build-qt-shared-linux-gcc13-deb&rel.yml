@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
+name: Build Qt 6.x.x -Deb&Rel -shared for Linux (GCC13)
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [Release]
+        config: [RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -112,11 +112,11 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
+          "$SRC_QT/configure" -shared $MODE -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
 
           cmake --build . --parallel 2
