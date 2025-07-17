@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Debug -shared for Linux (GCC13)
+name: Build Qt 6.x.x -Release -shared for Linux (Clang15)
 
 on:
   workflow_dispatch:
@@ -21,7 +21,8 @@ jobs:
 
     strategy:
       matrix:
-        config: [Debug]
+        config: [Debug, Release, RelWithDebInfo]
+
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -51,40 +52,28 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
-          # 安装指定版本的 GCC/G++ 13 以及其他构建工具
-          sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
-           libssl-dev gperf xz-utils \
-           libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
-           libx11-dev libxext-dev libxcb1-dev \
-           protobuf-compiler libprotobuf-dev
+          # 安装 Clang-15、LLD 及相关依赖
+          sudo apt-get -y install clang-15 lld-15 libc++-dev libc++abi-dev \
+            cmake ninja-build libssl-dev gperf xz-utils \
+            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
+            libx11-dev libxext-dev libxcb1-dev \
+            protobuf-compiler libprotobuf-dev
           echo "🔍 工具位置："
-          for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
-          # 设置默认 gcc / g++ 指向版本 13
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+          for tool in clang-15 clang++-15 ld.lld cmake ninja openssl protoc; do
+            which $tool || echo "$tool 未找到"
+          done
+          # 设置默认 clang / clang++ 指向版本 15
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100
           # 验证
-          gcc --version
-          g++ --version
+          clang --version
+          clang++ --version
           # 获取并格式化版本号
-          GCC_FULL=$(gcc -dumpfullversion)
-          GCC_VER=$(echo "$GCC_FULL" | tr -d '.')
-          echo "GCC_FULL=$GCC_FULL" >> "$GITHUB_OUTPUT"
-          echo "GCC_VER=$GCC_VER" >> "$GITHUB_OUTPUT"
-          echo "🔍 检测到 GCC: $GCC_FULL → $GCC_VER"
-
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@v2
-        with:
-          android: true    # 清理Android SDK（节省7GB）
-          dotnet: true     # 清理.NET缓存（节省1GB）
-          tool-cache: false # 不清理工具缓存（避免误删重要工具）
-
-      - name: Create Swap File
-        run: |
-          sudo fallocate -l 4G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          CLANG_FULL=$(clang --version | head -n1 | awk '{print $3}')
+          CLANG_VER=$(echo "$CLANG_FULL" | tr -d '.')
+          echo "CLANG_FULL=$CLANG_FULL" >> "$GITHUB_OUTPUT"
+          echo "CLANG_VER=$CLANG_VER" >> "$GITHUB_OUTPUT"
+          echo "🔍 检测到 Clang: $CLANG_FULL → $CLANG_VER"
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -96,7 +85,6 @@ jobs:
           echo "📂 Extracting .tar.xz via tar..."
           rm -rf "$TARGET_DIR"
           mkdir -p "$TARGET_DIR"
-          # -x: extract; -J: .xz; -f: file; -C: target dir
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
 
@@ -108,6 +96,9 @@ jobs:
       - name: Configure & build & install ${{ matrix.config }}
         env:
           CONFIG: ${{ matrix.config }}
+          CC: clang
+          CXX: clang++
+          LD: ld.lld
         run: |
           SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
           BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
@@ -126,32 +117,29 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -ltcg -reduce-exports \
+          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql -cmake-generator "Ninja" \
-            --  -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -DQT_BUILD_TESTS=OFF -Wno-dev
+            -no-sql-psql -- \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" \
+            -Wl,-fuse-ld=lld -Wno-dev
 
-          ninja -j 2 
-
-          echo "📦 安装到 $INSTALL_DIR"
-          ninja install
-
-          echo "🗑 删除构建目录，释放更多空间"
-          rm -rf "$BUILD_DIR" "$SRC_QT"
+          cmake --build . --parallel 2
+          cmake --install .
 
       - name: Package ${{ matrix.config }} as tar.gz
         env:
           CONFIG: ${{ matrix.config }}
-          GCC_VER: ${{ steps.install_build_tools.outputs.GCC_VER }}
+          CLANG_VER: ${{ steps.install_build_tools.outputs.CLANG_VER }}
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc_${GCC_VER}_x64-${CONFIG}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-linux-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
           echo "📦 正在打包 $CONFIG -> $ASSET..."
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
           tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
-      
+
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
@@ -194,10 +182,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          GCC_VER: ${{ steps.install_build_tools.outputs.GCC_VER }}
+          CLANG_VER: ${{ steps.install_build_tools.outputs.CLANG_VER }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc_${GCC_VER}_x64-${{ matrix.config }}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-linux-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber

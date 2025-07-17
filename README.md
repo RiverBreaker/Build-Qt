@@ -49,9 +49,9 @@
 ### 关于 Linux 和 macOS 工作流的说明
 
 - **macOS (`build-qt-shared-mac-clang15.yml`)**: 此工作流已经过验证，可以正常在 GitHub Actions 的 macOS Runner 上运行。
-- **Linux (`build-qt-shared-linux-gcc13.yml`)**: 此工作流未经充分验证。主要原因是编译 Qt 所需的磁盘空间（约 30-40 GB）远超 GitHub Actions 免费 Linux Runner 的可用空间（约 14 GB）。如需使用，您需要：
-  - 使用具有更大磁盘空间的自托管 Runner (self-hosted runner)。
-  - 或自行修改工作流以适配您的环境。
+- **Linux (`build-qt-shared-linux-gcc13-release.yml`)**: 此工作流已经过验证，可以正常在 GitHub Actions 的 Ubuntu Runner 上运行。
+  - **注意**: 由于 Github actions 的 Ubuntu runner 的磁盘空间限制（通常约为 14 GB），Debug & RelWithDebInfo 版本并没有在本仓库中被构建
+    - 如果你需要构建这两个配置的Qt, 你需要自己修改工作流文件, 并使用更大的 GitHub actions runner 来运行 或者 根据工作流文件来适配自己本地的构建环境来在本地自行构建
 
 ## 📄 许可证
 
