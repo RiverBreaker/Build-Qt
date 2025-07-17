@@ -117,13 +117,13 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
+          "$SRC_QT/configure" -shared $MODE -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql -- \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -no-sql-psql \
+            -- -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" \
             -Wl,-fuse-ld=lld -Wno-dev
 
