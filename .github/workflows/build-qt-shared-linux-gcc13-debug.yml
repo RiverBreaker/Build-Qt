@@ -132,7 +132,7 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -cmake-generator "Ninja" \
             --  -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -DQT_BUILD_TESTS=OFF -Wno-dev
 
           ninja -j 2 
 
