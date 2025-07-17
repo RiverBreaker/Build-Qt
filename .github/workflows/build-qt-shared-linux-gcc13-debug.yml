@@ -116,19 +116,17 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+            -no-sql-psql -cmake-generator "Ninja" \
+            --  -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
 
-          cmake --build . --parallel 2
-
-          echo "🧹 删除源码目录，释放空间"
-          rm -rf "$SRC_QT"
+          ninja -j 2 
 
           echo "📦 安装到 $INSTALL_DIR"
-          cmake --install .
-          
+          ninja install
+
           echo "🗑 删除构建目录，释放更多空间"
-          rm -rf "$BUILD_DIR"
+          rm -rf "$BUILD_DIR" "$SRC_QT"
 
       - name: Package ${{ matrix.config }} as tar.gz
         env:
