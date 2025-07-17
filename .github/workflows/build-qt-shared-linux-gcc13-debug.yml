@@ -72,6 +72,20 @@ jobs:
           echo "GCC_VER=$GCC_VER" >> "$GITHUB_OUTPUT"
           echo "🔍 检测到 GCC: $GCC_FULL → $GCC_VER"
 
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@v1
+        with:
+          android: true    # 清理Android SDK（节省7GB）
+          dotnet: true     # 清理.NET缓存（节省1GB）
+          tool-cache: false # 不清理工具缓存（避免误删重要工具）
+
+      - name: Create Swap File
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
