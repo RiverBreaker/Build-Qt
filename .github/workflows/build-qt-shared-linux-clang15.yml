@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Release -shared for Linux (Clang15)
+name: Build Qt 6.x.x -shared for Linux (Clang15)
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux(Clang15)
     runs-on: ubuntu-latest    
     permissions:
       contents: write
@@ -69,8 +69,8 @@ jobs:
           clang --version
           clang++ --version
           # 获取并格式化版本号
-          CLANG_FULL=$(clang --version | head -n1 | awk '{print $3}')
-          CLANG_VER=$(echo "$CLANG_FULL" | tr -d '.')
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
           echo "CLANG_FULL=$CLANG_FULL" >> "$GITHUB_OUTPUT"
           echo "CLANG_VER=$CLANG_VER" >> "$GITHUB_OUTPUT"
           echo "🔍 检测到 Clang: $CLANG_FULL → $CLANG_VER"
