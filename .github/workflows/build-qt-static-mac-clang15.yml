@@ -106,8 +106,8 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework \
-            -- -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
+            -- -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,-dead_strip" -Wno-dev
 
           # 构建并安装
           cmake --build . --parallel
