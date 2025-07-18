@@ -68,12 +68,6 @@ jobs:
           # 验证
           clang --version
           clang++ --version
-          # 获取并格式化版本号
-          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
-          CLANG_VER=${CLANG_FULL%%.*}
-          echo "CLANG_FULL=$CLANG_FULL" >> "$GITHUB_OUTPUT"
-          echo "CLANG_VER=$CLANG_VER" >> "$GITHUB_OUTPUT"
-          echo "🔍 检测到 Clang: $CLANG_FULL → $CLANG_VER"
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -131,14 +125,17 @@ jobs:
           cmake --install .
 
       - name: Package ${{ matrix.config }} as tar.gz
-        env:
-          CONFIG: ${{ matrix.config }}
-          CLANG_VER: ${{ steps.install_build_tools.outputs.CLANG_VER }}
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          # 获取并格式化版本号
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
+          ASSET="qt-${QT_VERSION}-shared-linux-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           echo "📦 正在打包 $CONFIG -> $ASSET..."
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
           tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
+          echo "✅ 打包完成: $RUNNER_TEMP/artifacts/$ASSET"
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -185,7 +182,7 @@ jobs:
           CLANG_VER: ${{ steps.install_build_tools.outputs.CLANG_VER }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-linux-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber

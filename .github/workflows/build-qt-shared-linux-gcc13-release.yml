@@ -65,12 +65,7 @@ jobs:
           # 验证
           gcc --version
           g++ --version
-          # 获取并格式化版本号
-          GCC_FULL=$(gcc -dumpfullversion)
-          GCC_VER=$(echo "$GCC_FULL" | tr -d '.')
-          echo "GCC_FULL=$GCC_FULL" >> "$GITHUB_OUTPUT"
-          echo "GCC_VER=$GCC_VER" >> "$GITHUB_OUTPUT"
-          echo "🔍 检测到 GCC: $GCC_FULL → $GCC_VER"
+          
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -123,11 +118,8 @@ jobs:
           cmake --install .
 
       - name: Package ${{ matrix.config }} as tar.gz
-        env:
-          CONFIG: ${{ matrix.config }}
-          GCC_VER: ${{ steps.install_build_tools.outputs.GCC_VER }}
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc_${GCC_VER}_x64-${CONFIG}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
           echo "📦 正在打包 $CONFIG -> $ASSET..."
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
           tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
@@ -174,10 +166,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          GCC_VER: ${{ steps.install_build_tools.outputs.GCC_VER }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc_${GCC_VER}_x64-${{ matrix.config }}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber

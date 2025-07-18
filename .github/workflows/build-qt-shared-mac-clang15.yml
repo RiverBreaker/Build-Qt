@@ -57,12 +57,7 @@ jobs:
           for tool in cmake ninja 7z openssl; do
             which $tool || echo "$tool not found in PATH"
           done
-          # 提取完整三段版本号并去掉点，例如 15.1.0 -> 1510
-          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
-          CLANG_VER=$(echo "$CLANG_FULL" | tr -d '.')
-          echo "CLANG_FULL=$CLANG_FULL" >> "$GITHUB_OUTPUT"
-          echo "CLANG_VER=$CLANG_VER"     >> "$GITHUB_OUTPUT"
-          echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
+          
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -122,9 +117,11 @@ jobs:
         shell: bash
         env:
           CONFIG: ${{ matrix.config }}
-          CLANG_VER: ${{ steps.clang_version.outputs.CLANG_VER }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifacts"
+          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
+          echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
           echo "📦 Packaging $CONFIG into $ASSET via tar..."
           # 切换到包含 CONFIG 子目录的父目录
