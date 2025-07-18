@@ -66,8 +66,8 @@ jobs:
             which $tool || echo "$tool 未找到"
           done
           # 设置默认 clang / clang++ 指向版本 15
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 600
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 600
           # 验证
           clang --version
           clang++ --version
@@ -137,7 +137,7 @@ jobs:
           ASSET="qt-${QT_VERSION}-shared-linux-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           echo "📦 正在打包 $CONFIG -> $ASSET..."
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
+          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
           echo "✅ 打包完成: $RUNNER_TEMP/artifacts/$ASSET"
 
       - name: Create Tag if not exists
@@ -182,8 +182,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CLANG_VER: ${{ steps.install_build_tools.outputs.CLANG_VER }}
+          CONFIG: ${{ matrix.config }}
         run: |
+          # 获取并格式化版本号
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-linux-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
