@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -shared for macOS (Clang15)
+name: Build Qt 6.x.x -static for macOS (Clang15)
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-static
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
@@ -125,7 +125,7 @@ jobs:
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
-          ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
+          ASSET="qt-${QT_VERSION}-static-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
           echo "📦 Packaging $CONFIG into $ASSET via tar..."
           # 切换到包含 CONFIG 子目录的父目录
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
@@ -140,7 +140,7 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           REPO:      ${{ github.repository }}
-          TAG:       v${{ env.QT_VERSION }}-shared
+          TAG:       v${{ env.QT_VERSION }}-static
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -161,7 +161,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ env.QT_VERSION }}-shared"
+          TAG="v${{ env.QT_VERSION }}-static"
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "found=existing" >> $GITHUB_OUTPUT
           else
@@ -179,8 +179,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CLANG_VER: ${{ steps.clang_version.outputs.CLANG_VER }}
         run: |
-          TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
+          TAG="v${{ env.QT_VERSION }}-static"
+          ASSET="qt-${QT_VERSION}-static-mac-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber

@@ -123,9 +123,9 @@ jobs:
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
           ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          echo "📦 正在打包 $CONFIG -> $ASSET..."
+          echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
+          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
       
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
