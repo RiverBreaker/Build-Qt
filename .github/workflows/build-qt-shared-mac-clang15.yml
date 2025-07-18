@@ -57,6 +57,7 @@ jobs:
           for tool in cmake ninja 7z openssl; do
             which $tool || echo "$tool not found in PATH"
           done
+          clang --version
           
 
       - name: Download & extract Qt
@@ -174,8 +175,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CLANG_VER: ${{ steps.clang_version.outputs.CLANG_VER }}
         run: |
+          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
