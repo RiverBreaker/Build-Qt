@@ -208,24 +208,27 @@ jobs:
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
+          
           TAG="v${{ env.QT_VERSION }}-static"
           BASE="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${{ matrix.config }}"
           ART_DIR="$RUNNER_TEMP/artifacts"
 
           echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
 
-          # 收集所有可能的 artifact 文件（单包或分卷）
-          mapfile -t files < <(find "$ART_DIR" -type f -name "${BASE}*.tar.gz*")
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
 
-          if [ ${#files[@]} -eq 0 ]; then
+          if ! $found; then
             echo "❌ No artifacts found to upload for $BASE"
             exit 1
           fi
-
-          # 遍历上传
-          for file in "${files[@]}"; do
-            echo "📤 Uploading $(basename "$file") to release $TAG"
-            gh release upload "$TAG" "$file" --clobber
-          done
 
           echo "✅ All artifacts uploaded."
