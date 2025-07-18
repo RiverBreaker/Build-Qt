@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
+name: Build Qt 6.x.x -shared for macOS (Clang15)
 
 on:
   workflow_dispatch:
@@ -11,17 +11,17 @@ on:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
-
+      
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
-    runs-on: ubuntu-latest    
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for macOS
+    runs-on: macos-latest
     permissions:
       contents: write
 
     strategy:
       matrix:
-        config: [Release]
+        config: [Debug, Release, RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+          
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -47,32 +47,24 @@ jobs:
           key: qt-src-${{ env.QT_VERSION }}-Unix
           path: ${{ runner.temp }}/qt6_src
 
-      - name: 安装构建工具（Linux）
-        id: install_build_tools
+      - name: Install build tools via Homebrew
+        shell: bash
         run: |
-          sudo apt-get update
-          # 安装指定版本的 GCC/G++ 13 以及其他构建工具
-          sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
-           libssl-dev gperf xz-utils \
-           libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
-           libx11-dev libxext-dev libxcb1-dev \
-           protobuf-compiler libprotobuf-dev \
-           clang-16 llvm-16-dev libclang-cpp16-dev lld-16
-          echo "🔍 工具位置："
-          for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
-          # 设置默认 gcc / g++ 指向版本 13
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 600
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 600
-          # 验证
-          gcc --version
-          g++ --version
+          echo "🔧 Installing build tools via Homebrew..."
+          brew update
+          brew install cmake ninja p7zip openssl gperf
+          echo "🔍 Installed tool locations:"
+          for tool in cmake ninja 7z openssl; do
+            which $tool || echo "$tool not found in PATH"
+          done
           
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: bash
         run: |
           ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          TARGET_DIR="$RUNNER_TEMP/qt6_src" 
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -83,11 +75,13 @@ jobs:
           echo "✅ Extraction complete: $TARGET_DIR"
 
       - name: Prepare build directory
+        shell: bash
         run: |
           rm -rf "$RUNNER_TEMP/build"
           mkdir -p "$RUNNER_TEMP/build"
 
       - name: Configure & build & install ${{ matrix.config }}
+        shell: bash
         env:
           CONFIG: ${{ matrix.config }}
         run: |
@@ -98,8 +92,10 @@ jobs:
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
-          mkdir -p "$INSTALL_DIR" "$ARTIFACTS_DIR"
+          mkdir -p "$INSTALL_DIR"
+          mkdir -p "$ARTIFACTS_DIR"
 
+          # 选择模式
           if [[ "$CONFIG" == "Debug" ]]; then
             MODE="-debug"
           elif [[ "$CONFIG" == "Release" ]]; then
@@ -108,23 +104,36 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
-            -prefix "$INSTALL_DIR" -no-pch \
-            -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource \
+          # 调用 configure
+          "$SRC_QT/configure" \
+            -static $MODE -static-runtime \
+            -gc-binaries \
+            -prefix "$INSTALL_DIR" \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
-
-          cmake --build . --parallel 2
+            -no-sql-psql -no-framework -- -Wno-dev
+          # 构建并安装
+          cmake --build . --parallel
           cmake --install .
 
       - name: Package ${{ matrix.config }} as tar.gz
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          echo "📦 正在打包 $CONFIG -> $ASSET..."
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
+          echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
+          ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
+          echo "📦 Packaging $CONFIG into $ASSET via tar..."
+          # 切换到包含 CONFIG 子目录的父目录
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
+          # -c: create, -z: gzip, -f: filename, -C: change dir
           tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
-      
+          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET"
+
+
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
@@ -135,6 +144,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 检查 TAG 是否已存在
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Local tag $TAG already exists, skip."
           elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
@@ -167,9 +177,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CLANG_VER: ${{ steps.clang_version.outputs.CLANG_VER }}
         run: |
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
+          ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
