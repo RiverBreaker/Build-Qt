@@ -84,11 +84,6 @@ jobs:
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
 
-      - name: Prepare build directory
-        run: |
-          rm -rf "$RUNNER_TEMP/build"
-          mkdir -p "$RUNNER_TEMP/build"
-
       - name: Configure & build & install ${{ matrix.config }}
         env:
           CONFIG: ${{ matrix.config }}

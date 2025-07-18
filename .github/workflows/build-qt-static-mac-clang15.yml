@@ -118,17 +118,46 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          mkdir -p "$RUNNER_TEMP/artifacts"
+          set -euo pipefail
+
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
-          ASSET="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${CONFIG}.tar.gz"
-          echo "📦 Packaging $CONFIG into $ASSET via tar..."
-          # 切换到包含 CONFIG 子目录的父目录
-          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          # -c: create, -z: gzip, -f: filename, -C: change dir
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
-          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET"
+          
+          BASE="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${CONFIG}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "$CONFIG"
+
+          # 根据不同平台获取文件大小
+          if [[ "$(uname)" == "Darwin" ]]; then
+            SIZE=$(stat -f%z "$SINGLE")
+          else
+            SIZE=$(stat -c%s "$SINGLE")
+          fi
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "$CONFIG" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
 
 
       - name: Create Tag if not exists
@@ -175,13 +204,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
+          echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
           TAG="v${{ env.QT_VERSION }}-static"
-          ASSET="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
-          if [ -f "$FILE" ]; then
-            gh release upload "$TAG" "$FILE" --clobber
-          else
-            echo "文件未找到，跳过上传：$FILE"
+          BASE="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${{ matrix.config }}"
+          ART_DIR="$RUNNER_TEMP/artifacts"
+
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+
+          # 收集所有可能的 artifact 文件（单包或分卷）
+          mapfile -t files < <(find "$ART_DIR" -type f -name "${BASE}*.tar.gz*")
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
           fi
+
+          # 遍历上传
+          for file in "${files[@]}"; do
+            echo "📤 Uploading $(basename "$file") to release $TAG"
+            gh release upload "$TAG" "$file" --clobber
+          done
+
+          echo "✅ All artifacts uploaded."

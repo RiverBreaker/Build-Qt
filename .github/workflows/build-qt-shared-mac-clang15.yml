@@ -52,9 +52,9 @@ jobs:
         run: |
           echo "🔧 Installing build tools via Homebrew..."
           brew update
-          brew install cmake ninja p7zip openssl gperf
+          brew install cmake ninja openssl gperf
           echo "🔍 Installed tool locations:"
-          for tool in cmake ninja 7z openssl; do
+          for tool in cmake ninja openssl gperf; do
             which $tool || echo "$tool not found in PATH"
           done
           clang --version
