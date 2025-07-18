@@ -101,13 +101,12 @@ jobs:
           # 调用 configure
           "$SRC_QT/configure" \
             -static $MODE -static-runtime \
-            -gc-binaries -ltcg -reduce-exports \
+            -gc-binaries \
             -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework \
-            -- -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,-dead_strip" -Wno-dev
+            -- -Wno-dev
 
           # 构建并安装
           cmake --build . --parallel
