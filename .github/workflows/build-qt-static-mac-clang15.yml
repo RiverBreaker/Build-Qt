@@ -101,7 +101,7 @@ jobs:
           # 调用 configure
           "$SRC_QT/configure" \
             -static $MODE -static-runtime \
-            -gc-binaries -ltcg -reduce-exports -no-pch \
+            -gc-binaries -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
