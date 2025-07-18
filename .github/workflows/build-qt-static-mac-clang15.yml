@@ -101,11 +101,14 @@ jobs:
           # 调用 configure
           "$SRC_QT/configure" \
             -static $MODE -static-runtime \
-            -gc-binaries \
+            -gc-binaries -ltcg -reduce-exports -no-pch \
             -prefix "$INSTALL_DIR" \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql -no-framework -- -Wno-dev
+            -no-sql-psql -no-framework \
+            -- -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
+
           # 构建并安装
           cmake --build . --parallel
           cmake --install .
@@ -119,7 +122,7 @@ jobs:
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
-          ASSET="qt-${QT_VERSION}-static-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
+          ASSET="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${CONFIG}.tar.gz"
           echo "📦 Packaging $CONFIG into $ASSET via tar..."
           # 切换到包含 CONFIG 子目录的父目录
           cd "$RUNNER_TEMP/qt-${QT_VERSION}"
@@ -175,7 +178,7 @@ jobs:
           CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           TAG="v${{ env.QT_VERSION }}-static"
-          ASSET="qt-${QT_VERSION}-static-mac-clang_${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
+          ASSET="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${{ matrix.config }}.tar.gz"
           FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
