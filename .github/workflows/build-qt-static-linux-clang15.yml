@@ -52,6 +52,8 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
+          # 移除可能冲突的zstd包
+          sudo apt-get remove -y libzstd-dev libzstd1 || true
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
@@ -141,7 +143,7 @@ jobs:
           CLANG_VER=${CLANG_FULL%%.*}
           echo "Clang version: $CLANG_VER"
           
-          BASE="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${CONFIG}"
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
           SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
           LIMIT=$((1950 * 1024 * 1024))
 
@@ -219,7 +221,7 @@ jobs:
           echo "Clang version: $CLANG_VER"
           
           TAG="v${{ env.QT_VERSION }}-static"
-          BASE="qt-${QT_VERSION}-static-mac-clang${CLANG_VER}_x64-${{ matrix.config }}"
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${{ matrix.config }}"
           ART_DIR="$RUNNER_TEMP/artifacts"
 
           echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
