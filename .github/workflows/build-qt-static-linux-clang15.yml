@@ -53,6 +53,10 @@ jobs:
         run: |
           sudo apt-get update
 
+          sudo apt-get remove -y libzstd-dev zstd
+
+          sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/zstd
+
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
@@ -66,6 +70,11 @@ jobs:
           for tool in clang-15 clang++-15 ld.lld cmake ninja openssl protoc; do
             which $tool || echo "$tool 未找到"
           done
+          LLVM_CMAKE_DIR="/usr/lib/llvm-15/lib/cmake/llvm"
+          if [ -f "$LLVM_CMAKE_DIR/Findzstd.cmake" ]; then
+            sudo rm "$LLVM_CMAKE_DIR/Findzstd.cmake"
+            echo "✅ 已删除 LLVM-15 自带的 Findzstd.cmake"
+          fi
           # 设置默认 clang / clang++ 指向版本 15
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 600
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 600
@@ -119,7 +128,6 @@ jobs:
             -no-sql-psql \
             -- \
               -Wno-dev \
-              -DCMAKE_IGNORE_PATH="/usr/lib/x86_64-linux-gnu/cmake/zstd;/usr/lib/llvm-15/lib/cmake/llvm" \
               -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
               -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
               -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" 
