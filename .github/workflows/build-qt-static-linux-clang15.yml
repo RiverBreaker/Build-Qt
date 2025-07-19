@@ -53,10 +53,6 @@ jobs:
         run: |
           sudo apt-get update
 
-          sudo apt-get remove -y libzstd-dev zstd
-
-          sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/zstd
-
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
