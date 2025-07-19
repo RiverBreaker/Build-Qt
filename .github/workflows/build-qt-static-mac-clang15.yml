@@ -112,6 +112,11 @@ jobs:
           cmake --build . --parallel
           cmake --install .
 
+          # 清理构建目录和源码目录
+          echo "🧹 Cleaning up build directory and src directory..."
+          rm -rf "$BUILD_DIR" "$SRC_QT"
+          echo "✅ Cleaned up."
+
       - name: Package ${{ matrix.config }} as tar.gz
         shell: bash
         env:
