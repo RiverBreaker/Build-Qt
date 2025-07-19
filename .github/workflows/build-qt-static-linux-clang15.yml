@@ -52,14 +52,12 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
-          sudo apt-get remove -y libzstd-dev zstd
-          sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/zstd
 
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
             libclang-15-dev llvm-15-dev \
-            libc++-dev libc++abi-dev libzstd-dev \
+            libc++-dev libc++abi-dev \
             cmake ninja-build libssl-dev gperf xz-utils \
             libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxcb1-dev \
@@ -68,11 +66,6 @@ jobs:
           for tool in clang-15 clang++-15 ld.lld cmake ninja openssl protoc; do
             which $tool || echo "$tool 未找到"
           done
-          LLVM_CMAKE_DIR="/usr/lib/llvm-15/lib/cmake/llvm"
-          if [ -f "$LLVM_CMAKE_DIR/Findzstd.cmake" ]; then
-            sudo rm "$LLVM_CMAKE_DIR/Findzstd.cmake"
-            echo "✅ 已删除 LLVM-15 自带的 Findzstd.cmake"
-          fi
           # 设置默认 clang / clang++ 指向版本 15
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 600
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 600
@@ -123,7 +116,7 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license \
-            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -zstd \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -no-zstd \
             -no-sql-psql \
             -- \
               -Wno-dev \
