@@ -52,8 +52,7 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
-          # 移除可能冲突的zstd包
-          sudo apt-get remove -y libzstd-dev libzstd1 || true
+
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
@@ -116,8 +115,8 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg \
-            -qt-zlib -qt-pcre -qt-freetype -qt-zstd \
-            -no-sql-psql \
+            -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-feature-zstd \
             -- -Wno-dev -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" 
