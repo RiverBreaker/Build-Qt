@@ -115,11 +115,14 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg \
-            -qt-zlib -qt-pcre -qt-freetype \
+            -qt-zlib -qt-pcre -qt-freetype -qt-zstd \
             -no-sql-psql -no-feature-zstd \
-            -- -Wno-dev -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" 
+            -- \
+              -Wno-dev \
+              -DCMAKE_DISABLE_FIND_PACKAGE_Zstd=TRUE \
+              -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+              -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" 
             
           # -DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
           cmake --build . --parallel 2
