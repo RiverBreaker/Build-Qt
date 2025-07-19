@@ -118,12 +118,11 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg \
             -qt-zlib -qt-pcre -qt-freetype -qt-zstd \
             -no-sql-psql \
-            -- -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
+            -- -Wno-dev -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" \
-            -Wno-dev
-
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" 
+            
+          # -DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
           cmake --build . --parallel 2
           cmake --install .
 
