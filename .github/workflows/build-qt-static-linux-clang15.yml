@@ -125,7 +125,7 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license \
-            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -qt-zstd \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -zstd \
             -no-sql-psql \
             -- \
               -Wno-dev \
