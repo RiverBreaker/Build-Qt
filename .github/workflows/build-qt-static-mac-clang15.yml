@@ -114,9 +114,9 @@ jobs:
           cmake --build . --parallel 2
           cmake --install . 
 
-          # 清理构建目录和源码目录
-          echo "🧹 Cleaning up build directory and src directory..."
-          rm -rf "$BUILD_DIR" "$SRC_QT"
+          # 清理构建目录
+          echo "🧹 Cleaning up build directory..."
+          rm -rf "$BUILD_DIR"
           echo "✅ Cleaned up."
 
       - name: Package ${{ matrix.config }} as tar.gz
@@ -215,7 +215,6 @@ jobs:
           ART_DIR="$RUNNER_TEMP/artifacts"
 
           echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
-          ls -1 "$ART_DIR/$BASE.tar.gz.part-"*
 
           found=false
           # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
