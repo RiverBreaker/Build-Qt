@@ -98,19 +98,21 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          # 调用 configure
+          # 调用 qt-configure
           "$SRC_QT/configure" \
             -static $MODE -static-runtime \
-            -gc-binaries \
+            -gc-binaries -no-pch -reduce-exports \
             -prefix "$INSTALL_DIR" \
-            -nomake examples -nomake tests -skip qtwebengine -opensource \
-            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -nomake examples -nomake tests -skip qtwebengine  \
+            -opensource -confirm-license \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework \
-            -- -Wno-dev
+            -- -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev 
 
           # 构建并安装
-          cmake --build . --parallel
-          cmake --install .
+          cmake --build . --parallel 2
+          cmake --install . 
 
           # 清理构建目录和源码目录
           echo "🧹 Cleaning up build directory and src directory..."
@@ -140,12 +142,7 @@ jobs:
           echo "📦 Trying to create single archive: $SINGLE"
           tar -C "$SRC_DIR" -czf "$SINGLE" "$CONFIG"
 
-          # 根据不同平台获取文件大小
-          if [[ "$(uname)" == "Darwin" ]]; then
-            SIZE=$(stat -f%z "$SINGLE")
-          else
-            SIZE=$(stat -c%s "$SINGLE")
-          fi
+          SIZE=$(stat -f%z "$SINGLE")
 
           echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
 
@@ -162,7 +159,6 @@ jobs:
           else
             echo "✅ Created single archive: $SINGLE"
           fi
-
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -219,6 +215,7 @@ jobs:
           ART_DIR="$RUNNER_TEMP/artifacts"
 
           echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+          ls -1 "$ART_DIR/$BASE.tar.gz.part-"*
 
           found=false
           # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
