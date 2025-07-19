@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
+name: Build Qt 6.x.x -static for Linux (GCC13)
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux(GCC13)
     runs-on: ubuntu-latest    
     permissions:
       contents: write
@@ -22,10 +22,11 @@ jobs:
     strategy:
       matrix:
         config: [Release]
+
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
-      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-static
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
@@ -51,7 +52,7 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
-          # 安装指定版本的 GCC/G++ 13 以及其他构建工具
+
           sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
            libssl-dev gperf xz-utils \
            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
@@ -80,7 +81,6 @@ jobs:
           echo "📂 Extracting .tar.xz via tar..."
           rm -rf "$TARGET_DIR"
           mkdir -p "$TARGET_DIR"
-          # -x: extract; -J: .xz; -f: file; -C: target dir
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
 
@@ -105,30 +105,69 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
+          "$SRC_QT/configure" \
+            -static -static-runtime $MODE \
+            -optimize-size -gc-binaries -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
-            -nomake examples -nomake tests -skip qtwebengine -opensource \
-            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
-
+            -nomake examples -nomake tests -skip qtwebengine \
+            -opensource -confirm-license \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-zstd \
+            -- \
+              -Wno-dev \
+              -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+              -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
+            
+          # -DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
           cmake --build . --parallel 2
           cmake --install .
 
+          # 清理构建目录
+          echo "🧹 Cleaning up build directory..."
+          rm -rf "$BUILD_DIR"
+          echo "✅ Build directory cleaned."
+
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
-          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
-      
+          set -euo pipefail
+
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+          
+          BASE="qt-${QT_VERSION}-static-linux-gcc13_x64-${CONFIG}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "$CONFIG"
+
+          SIZE=$(stat -c%s "$SINGLE")
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "$CONFIG" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
+
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           REPO:      ${{ github.repository }}
-          TAG:       v${{ env.QT_VERSION }}-shared
+          TAG:       v${{ env.QT_VERSION }}-static
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -148,7 +187,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ env.QT_VERSION }}-shared"
+          TAG="v${{ env.QT_VERSION }}-static"
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "found=existing" >> $GITHUB_OUTPUT
           else
@@ -164,12 +203,30 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          CONFIG: ${{ matrix.config }}
         run: |
-          TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
-          if [ -f "$FILE" ]; then
-            gh release upload "$TAG" "$FILE" --clobber
-          else
-            echo "文件未找到，跳过上传：$FILE"
+          set -euo pipefail
+          
+          TAG="v${{ env.QT_VERSION }}-static"
+          BASE="qt-${QT_VERSION}-static-linux-gcc13_x64-${{ matrix.config }}"
+          ART_DIR="$RUNNER_TEMP/artifacts"
+
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
+
+          if ! $found; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
           fi
+
+          echo "✅ All artifacts uploaded."

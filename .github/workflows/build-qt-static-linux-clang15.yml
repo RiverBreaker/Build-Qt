@@ -116,8 +116,8 @@ jobs:
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license \
-            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype -no-zstd \
-            -no-sql-psql \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-zstd \
             -- \
               -Wno-dev \
               -DCMAKE_C_COMPILER=clang \
