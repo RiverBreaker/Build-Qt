@@ -52,12 +52,14 @@ jobs:
         id: install_build_tools
         run: |
           sudo apt-get update
+          sudo apt-get remove -y libzstd-dev zstd
+          sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/zstd
 
           # 安装 Clang-15、LLD 及相关依赖
           sudo apt-get -y install \
             clang-15 lld-15 clang-tools-15 \
             libclang-15-dev llvm-15-dev \
-            libc++-dev libc++abi-dev \
+            libc++-dev libc++abi-dev libzstd-dev \
             cmake ninja-build libssl-dev gperf xz-utils \
             libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxcb1-dev \
