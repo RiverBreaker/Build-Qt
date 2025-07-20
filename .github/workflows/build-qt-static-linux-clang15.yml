@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -static for Linux (Clang15)
+name: Build Qt6 -static for Linux (Clang15)
 
 on:
   workflow_dispatch:
@@ -14,14 +14,10 @@ on:
 
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux(Clang15)
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} for Linux(Clang15)
     runs-on: ubuntu-latest    
     permissions:
       contents: write
-
-    strategy:
-      matrix:
-        config: [Debug, Release, RelWithDebInfo]
 
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
@@ -48,7 +44,7 @@ jobs:
           key: qt-src-${{ env.QT_VERSION }}-Unix
           path: ${{ runner.temp }}/qt6_src
 
-      - name: 安装构建工具（Linux）
+      - name: install build-tools-package for Linux-Clang15
         id: install_build_tools
         run: |
           sudo apt-get update
@@ -86,9 +82,9 @@ jobs:
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
 
-      - name: Configure & build & install ${{ matrix.config }}
+      - name: Configure & build & install Release
         env:
-          CONFIG: ${{ matrix.config }}
+          CONFIG: Release
           CC: clang
           CXX: clang++
           LD: ld.lld
@@ -124,8 +120,7 @@ jobs:
               -DCMAKE_CXX_COMPILER=clang++ \
               -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
               -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
-            
-          # -DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
+
           cmake --build . --parallel 2
           cmake --install .
 
@@ -134,7 +129,9 @@ jobs:
           rm -rf "$BUILD_DIR"
           echo "✅ Build directory cleaned."
 
-      - name: Package ${{ matrix.config }} as tar.gz
+      - name: Package Release as tar.gz
+        env:
+          CONFIG: Release
         run: |
           set -euo pipefail
 
@@ -214,7 +211,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CONFIG: ${{ matrix.config }}
+          CONFIG: Release
         run: |
           set -euo pipefail
 
@@ -223,7 +220,249 @@ jobs:
           echo "Clang version: $CLANG_VER"
           
           TAG="v${{ env.QT_VERSION }}-static"
-          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${{ matrix.config }}"
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+          ART_DIR="$RUNNER_TEMP/artifacts"
+
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
+
+          if ! $found; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
+          fi
+
+      - name: Configure & build & install Debug
+        env:
+          CONFIG: Debug
+          CC: clang
+          CXX: clang++
+          LD: ld.lld
+        run: |
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
+          mkdir -p "$INSTALL_DIR" "$ARTIFACTS_DIR"
+
+          if [[ "$CONFIG" == "Debug" ]]; then
+            MODE="-debug"
+          elif [[ "$CONFIG" == "Release" ]]; then
+            MODE="-release"
+          else
+            MODE="-release -force-debug-info"
+          fi
+
+          "$SRC_QT/configure" \
+            -static -static-runtime $MODE \
+            -gc-binaries -ltcg -reduce-exports \
+            -prefix "$INSTALL_DIR" -no-pch \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
+            -confirm-license \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-zstd \
+            -- \
+              -Wno-dev \
+              -DCMAKE_C_COMPILER=clang \
+              -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+              -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
+
+          cmake --build . --parallel 2
+          cmake --install .
+
+          # 清理构建目录
+          echo "🧹 Cleaning up build directory..."
+          rm -rf "$BUILD_DIR"
+          echo "✅ Build directory cleaned."
+
+      - name: Package Debug as tar.gz
+        env:
+          CONFIG: Debug
+        run: |
+          set -euo pipefail
+
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
+          
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "$CONFIG"
+
+          SIZE=$(stat -c%s "$SINGLE")
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "$CONFIG" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
+      
+      - name: Upload build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIG: Debug
+        run: |
+          set -euo pipefail
+
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
+          
+          TAG="v${{ env.QT_VERSION }}-static"
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+          ART_DIR="$RUNNER_TEMP/artifacts"
+
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
+
+          if ! $found; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
+          fi
+
+      - name: Configure & build & install RelWithDebInfo
+        env:
+          CONFIG: RelWithDebInfo
+          CC: clang
+          CXX: clang++
+          LD: ld.lld
+        run: |
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
+          mkdir -p "$INSTALL_DIR" "$ARTIFACTS_DIR"
+
+          if [[ "$CONFIG" == "Debug" ]]; then
+            MODE="-debug"
+          elif [[ "$CONFIG" == "Release" ]]; then
+            MODE="-release"
+          else
+            MODE="-release -force-debug-info"
+          fi
+
+          "$SRC_QT/configure" \
+            -static -static-runtime $MODE \
+            -gc-binaries -ltcg -reduce-exports \
+            -prefix "$INSTALL_DIR" -no-pch \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
+            -confirm-license \
+            -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-zstd \
+            -- \
+              -Wno-dev \
+              -DCMAKE_C_COMPILER=clang \
+              -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+              -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
+
+          cmake --build . --parallel 2
+          cmake --install .
+
+          # 清理构建目录
+          echo "🧹 Cleaning up build directory..."
+          rm -rf "$BUILD_DIR"
+          echo "✅ Build directory cleaned."
+
+      - name: Package RelWithDebInfo as tar.gz
+        env:
+          CONFIG: RelWithDebInfo
+        run: |
+          set -euo pipefail
+
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
+          
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "$CONFIG"
+
+          SIZE=$(stat -c%s "$SINGLE")
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "$CONFIG" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
+
+      - name: Upload build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIG: RelWithDebInfo
+        run: |
+          set -euo pipefail
+
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_VER=${CLANG_FULL%%.*}
+          echo "Clang version: $CLANG_VER"
+          
+          TAG="v${{ env.QT_VERSION }}-static"
+          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
           ART_DIR="$RUNNER_TEMP/artifacts"
 
           echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
