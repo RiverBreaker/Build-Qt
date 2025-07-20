@@ -169,78 +169,6 @@ jobs:
             echo "✅ Created single archive: $SINGLE"
           fi
 
-      - name: Create Tag if not exists
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-        shell: bash
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          REPO:      ${{ github.repository }}
-          TAG:       v${{ env.QT_VERSION }}-static
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Local tag $TAG already exists, skip."
-          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
-            echo "Remote tag $TAG already exists, skip."
-          else
-            git tag "$TAG"
-            git push "https://x-access-token:$PAT_TOKEN@github.com/$REPO" "$TAG"
-            echo "Tag $TAG created and pushed."
-          fi
-
-      - name: Ensure Release exists or create
-        id: ensure_release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="v${{ env.QT_VERSION }}-static"
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "found=existing" >> $GITHUB_OUTPUT
-          else
-            echo "found=new" >> $GITHUB_OUTPUT
-            gh release create "$TAG" \
-              --title "Qt $TAG Auto Builds" \
-              --notes "Automated build of Qt $TAG" \
-              --draft=false \
-              --prerelease=false
-          fi
-
-      - name: Upload Release build artifacts
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CONFIG: Release
-        run: |
-          set -euo pipefail
-
-          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
-          CLANG_VER=${CLANG_FULL%%.*}
-          echo "Clang version: $CLANG_VER"
-          
-          TAG="v${{ env.QT_VERSION }}-static"
-          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
-          ART_DIR="$RUNNER_TEMP/artifacts"
-
-          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
-
-          found=false
-          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
-          # 所以这里先测试一下文件是否真的存在。
-          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
-            if [ -e "$file" ]; then
-              echo "📤 Uploading $(basename "$file") to release $TAG"
-              gh release upload "$TAG" "$file" --clobber
-              found=true
-            fi
-          done
-
-          if ! $found; then
-            echo "❌ No artifacts found to upload for $BASE"
-            exit 1
-          fi
-
       - name: Configure & build & install Debug
         env:
           CONFIG: Debug
@@ -326,40 +254,6 @@ jobs:
             ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
           else
             echo "✅ Created single archive: $SINGLE"
-          fi
-      
-      - name: Upload Debug build artifacts
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CONFIG: Debug
-        run: |
-          set -euo pipefail
-
-          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
-          CLANG_VER=${CLANG_FULL%%.*}
-          echo "Clang version: $CLANG_VER"
-          
-          TAG="v${{ env.QT_VERSION }}-static"
-          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
-          ART_DIR="$RUNNER_TEMP/artifacts"
-
-          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
-
-          found=false
-          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
-          # 所以这里先测试一下文件是否真的存在。
-          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
-            if [ -e "$file" ]; then
-              echo "📤 Uploading $(basename "$file") to release $TAG"
-              gh release upload "$TAG" "$file" --clobber
-              found=true
-            fi
-          done
-
-          if ! $found; then
-            echo "❌ No artifacts found to upload for $BASE"
-            exit 1
           fi
 
       - name: Configure & build & install RelWithDebInfo
@@ -449,38 +343,71 @@ jobs:
             echo "✅ Created single archive: $SINGLE"
           fi
 
-      - name: Upload RelWithDebInfo build artifacts
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          REPO:      ${{ github.repository }}
+          TAG:       v${{ env.QT_VERSION }}-static
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Local tag $TAG already exists, skip."
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Remote tag $TAG already exists, skip."
+          else
+            git tag "$TAG"
+            git push "https://x-access-token:$PAT_TOKEN@github.com/$REPO" "$TAG"
+            echo "Tag $TAG created and pushed."
+          fi
+
+      - name: Ensure Release exists or create
+        id: ensure_release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CONFIG: RelWithDebInfo
+        run: |
+          TAG="v${{ env.QT_VERSION }}-static"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "Qt $TAG Auto Builds" \
+              --notes "Automated build of Qt $TAG" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload all build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QT_VERSION: ${{ env.QT_VERSION }}
         run: |
           set -euo pipefail
 
-          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?' | head -n1)
+          CLANG_FULL=$(clang --version | head -n1 | grep -oP '\d+\.\d+(\.\d+)?')
           CLANG_VER=${CLANG_FULL%%.*}
-          echo "Clang version: $CLANG_VER"
-          
-          TAG="v${{ env.QT_VERSION }}-static"
-          BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+          TAG="v${QT_VERSION}-static"
           ART_DIR="$RUNNER_TEMP/artifacts"
 
-          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+          for CONFIG in Release Debug RelWithDebInfo; do
+            BASE="qt-${QT_VERSION}-static-linux-clang${CLANG_VER}_x64-${CONFIG}"
+            
+            echo "🔍 Looking for $BASE* in $ART_DIR"
+            matches=( "$ART_DIR"/"$BASE"*.tar.gz* )
 
-          found=false
-          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
-          # 所以这里先测试一下文件是否真的存在。
-          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
-            if [ -e "$file" ]; then
-              echo "📤 Uploading $(basename "$file") to release $TAG"
-              gh release upload "$TAG" "$file" --clobber
-              found=true
+            if [[ -e "${matches[0]}" ]]; then
+              for file in "${matches[@]}"; do
+                echo "📤 Uploading $(basename "$file") to release $TAG"
+                gh release upload "$TAG" "$file" --clobber
+              done
+            else
+              echo "⚠️ No artifacts found for $BASE, skipping."
             fi
           done
 
-          if ! $found; then
-            echo "❌ No artifacts found to upload for $BASE"
-            exit 1
-          fi
-
-          echo "✅ All artifacts uploaded."
+          echo "✅ All available artifacts uploaded."
