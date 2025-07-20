@@ -108,17 +108,17 @@ jobs:
 
           "$SRC_QT/configure" \
             -static -static-runtime $MODE \
-            -gc-binaries -ltcg -reduce-exports \
+            -optimize-size -gc-binaries -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
-            -nomake examples -nomake tests -skip qtwebengine -opensource \
-            -confirm-license \
+            -nomake examples -nomake tests -skip qtwebengine \
+            -opensource -confirm-license \
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-zstd \
             -- \
               -Wno-dev \
               -DCMAKE_C_COMPILER=clang \
               -DCMAKE_CXX_COMPILER=clang++ \
-              -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
+              -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
               -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
 
           cmake --build . --parallel 2
@@ -207,7 +207,7 @@ jobs:
               --prerelease=false
           fi
 
-      - name: Upload build artifacts
+      - name: Upload Release build artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -328,7 +328,7 @@ jobs:
             echo "✅ Created single archive: $SINGLE"
           fi
       
-      - name: Upload build artifacts
+      - name: Upload Debug build artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -449,7 +449,7 @@ jobs:
             echo "✅ Created single archive: $SINGLE"
           fi
 
-      - name: Upload build artifacts
+      - name: Upload RelWithDebInfo build artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
