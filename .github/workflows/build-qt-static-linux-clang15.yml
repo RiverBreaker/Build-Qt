@@ -217,8 +217,8 @@ jobs:
             -static -static-runtime $MODE \
             -gc-binaries -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
-            -nomake examples -nomake tests -skip qtwebengine -opensource \
-            -confirm-license \
+            -nomake examples -nomake tests -skip qtwebengine -skip qt3d \
+            -opensource -confirm-license \
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-zstd \
             -- \
@@ -228,7 +228,7 @@ jobs:
               -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
               -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
 
-          cmake --build . --parallel 2
+          cmake --build . --parallel 1
           cmake --install .
 
           # 清理构建目录
@@ -327,8 +327,8 @@ jobs:
             -static -static-runtime $MODE \
             -gc-binaries -ltcg -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
-            -nomake examples -nomake tests -skip qtwebengine -opensource \
-            -confirm-license \
+            -nomake examples -nomake tests -skip qtwebengine -skip qt3d \
+            -opensource -confirm-license \
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-zstd \
             -- \
@@ -338,7 +338,7 @@ jobs:
               -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
               -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections"
 
-          cmake --build . --parallel 2
+          cmake --build . --parallel 1
           cmake --install .
 
           # 清理构建目录
