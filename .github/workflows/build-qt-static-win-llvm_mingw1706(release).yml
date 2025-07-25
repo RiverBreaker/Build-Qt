@@ -28,8 +28,8 @@ jobs:
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-static
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
-      QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
-      QT_LLVM_MINGW_URL: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z
+      QT_SOURCE_URL: https://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      QT_LLVM_MINGW_URL: https://mirrors.tuna.tsinghua.edu.cn/qt/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z
 
     steps:
       - name: Checkout repository
