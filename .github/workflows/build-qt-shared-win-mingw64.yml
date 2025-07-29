@@ -160,7 +160,7 @@ jobs:
           rem 5. 调用 configure
           call "%SRC_QT%\configure.bat" ^
             -shared %MODE% -prefix "%INSTALL_DIR%" ^
-            -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel -platform win32-g++ -no-sql-psql ^
             -- -Wno-dev

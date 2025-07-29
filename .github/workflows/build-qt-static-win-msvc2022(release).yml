@@ -132,7 +132,7 @@ jobs:
           rem 5. 调用 configure
           rem 添加 -static-runtime 以静态链接 CRT；跳过不需要的模块
           call "%SRC_QT%\\configure.bat" -static -static-runtime %MODE% -prefix "%INSTALL_DIR%" ^
-            -nomake examples -nomake tests -skip qtwebengine -skip qtwebview -opensource ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
