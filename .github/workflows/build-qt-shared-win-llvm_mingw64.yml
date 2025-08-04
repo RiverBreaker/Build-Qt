@@ -15,7 +15,7 @@ on:
       
 jobs:
   build-qt:
-    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (Mingw64)
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (LLVM-Mingw64)
     runs-on: windows-latest
     permissions:
       contents: write
