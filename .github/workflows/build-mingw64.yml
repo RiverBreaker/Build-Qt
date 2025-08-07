@@ -100,7 +100,7 @@ jobs:
           --build=${{ env.HOST_TARGET }} \
           --target=${{ env.HOST_TARGET }} \
           --with-sysroot=${{ env.PREFIX_UNIX }} \
-          --with-native-system-header-dir=${{ env.PREFIX_UNIX }}/include \
+          --with-native-system-header-dir=/include \
           --enable-languages=c,c++ \
           --enable-libgomp \
           --enable-libquadmath \
