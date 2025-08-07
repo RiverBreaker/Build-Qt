@@ -65,18 +65,6 @@ jobs:
         ../configure \
           --prefix=${{ env.PREFIX_UNIX }} \
           --enable-threads=${{ matrix.thread }} \
-          --enable-languages=c,c++ \
-          --enable-libgomp \
-          --enable-libquadmath \
-          --enable-libssp \
-          --enable-libvtv \
-          --enable-libstdcxx-time=yes \
-          --with-gnu-ld \
-          --disable-symvers \
-          --build=${{ env.HOST_TARGET }} \
-          --host=${{ env.HOST_TARGET }} \
-          --target=${{ env.HOST_TARGET }} \
-          --with-sysroot=${{ env.PREFIX_UNIX }} \
           --with-default-msvcrt=${{ matrix.crt }} \
           --enable-seh
           
@@ -85,13 +73,63 @@ jobs:
         make install
         ls ${{ env.PREFIX_UNIX }}
         
-    - name: Verify installation
+    - name: Download GCC source
       shell: msys2 {0}
       run: |
-        cd ${{ env.PREFIX_UNIX }}/bin && ls
-        echo "GCC Version:"
+        # 下载GCC 13.2.0源码
+        git clone https://github.com/gcc-mirror/gcc.git
+        cd gcc
+        git checkout tags/releases/gcc-13.2.0 -b gcc-13.2.0
+        # 配置contrib/download_prerequisites自动下载依赖
+        ./contrib/download_prerequisites
+        
+    - name: Build and install GCC
+      shell: msys2 {0}
+      run: |
+        cd gcc-13.2.0
+        mkdir build && cd build
+        
+        # 配置GCC使用刚安装的MinGW-w64运行时
+        ../configure \
+          --prefix=${{ env.PREFIX_UNIX }} \
+          --host=${{ env.HOST_TARGET }} \
+          --build=${{ env.HOST_TARGET }} \
+          --target=${{ env.HOST_TARGET }} \
+          --with-sysroot=${{ env.PREFIX_UNIX }} \
+          --enable-languages=c,c++ \
+          --enable-libgomp \
+          --enable-libquadmath \
+          --enable-libssp \
+          --enable-libvtv \
+          --enable-libstdcxx-time=yes \
+          --with-gnu-ld \
+          --disable-symvers \
+          --enable-threads=${{ matrix.thread }} \
+          --with-default-msvcrt=${{ matrix.crt }} \
+          --enable-seh \
+          --disable-multilib \
+          --with-stage1-ldflags="-static" \
+          --with-boot-ldflags="-static"
+          
+        # 编译并安装（这将需要很长时间）
+        make -j1 all-gcc
+        make -j1 all-target-libstdc++-v3
+        make install-gcc
+        make install-target-libstdc++-v3
+        
+    - name: Verify full installation
+      shell: msys2 {0}
+      run: |
+        echo "Checking installation directories:"
+        ls -la ${{ env.PREFIX_UNIX }}
 
+        echo -e "\nChecking bin directory contents:"
+        ls -la ${{ env.PREFIX_UNIX }}/bin
+
+        echo -e "\nGCC Version:"
         ${{ env.PREFIX_UNIX }}/bin/${{ env.HOST_TARGET }}-gcc --version
+        
+        echo -e "\nConfiguration details:"
         ${{ env.PREFIX_UNIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
 
     - name: Archive build artifacts
