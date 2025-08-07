@@ -21,9 +21,9 @@ jobs:
       ARCH: x86_64
       HOST_TARGET: x86_64-w64-mingw32
       # 用于MSYS2操作的Unix路径
-      PREFIX: ${{ runner.temp }}/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
-      # # 用于Windows操作的路径
-      # PREFIX_WIN: ${{ runner.temp }}/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      PREFIX_UNIX: /c/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      # 用于Windows操作的路径
+      PREFIX_WIN: C:/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
       DISPLAY_NAME: x86_64-${{ matrix.thread }}-seh-${{ matrix.crt }}
       
     steps:
@@ -63,7 +63,7 @@ jobs:
         
         # 构建配置参数
         ../configure \
-          --prefix=${{ env.PREFIX }} \
+          --prefix=${{ env.PREFIX_UNIX }} \
           --enable-threads=${{ matrix.thread }} \
           --enable-languages=c,c++ \
           --enable-libgomp \
@@ -76,25 +76,26 @@ jobs:
           --build=${{ env.HOST_TARGET }} \
           --host=${{ env.HOST_TARGET }} \
           --target=${{ env.HOST_TARGET }} \
-          --with-sysroot=${{ env.PREFIX }} \
+          --with-sysroot=${{ env.PREFIX_UNIX }} \
           --with-default-msvcrt=${{ matrix.crt }} \
           --enable-seh
           
         # 编译和安装
         make -j1
         make install
+        ls ${{ env.PREFIX_UNIX }}/bin
         
     - name: Verify installation
       shell: msys2 {0}
       run: |
-        cd ${{ env.PREFIX }}/bin && ls
+        cd ${{ env.PREFIX_UNIX }}/bin && ls
         echo "GCC Version:"
 
-        ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc --version
-        ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
+        ${{ env.PREFIX_UNIX }}/bin/${{ env.HOST_TARGET }}-gcc --version
+        ${{ env.PREFIX_UNIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
 
     - name: Archive build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: mingw64-${{ env.DISPLAY_NAME }}
-        path: ${{ env.PREFIX }}
+        path: ${{ env.PREFIX_WIN }}
