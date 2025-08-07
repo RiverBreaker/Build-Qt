@@ -13,6 +13,9 @@ jobs:
       matrix:
         thread: [posix, win32, mcf]
         crt: [msvcrt, ucrt]
+        exclude: 
+          - thread: mcf
+            crt: msvcrt
     env:
       ARCH: x86_64
       HOST_TARGET: x86_64-w64-mingw32
@@ -51,6 +54,7 @@ jobs:
       shell: msys2 {0}
       run: |
         cd mingw-w64
+        ls
         mkdir build && cd build
         
         # 构建配置参数
