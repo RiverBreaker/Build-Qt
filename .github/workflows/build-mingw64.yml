@@ -83,7 +83,7 @@ jobs:
         # 编译和安装
         make -j1
         make install
-        ls ${{ env.PREFIX_UNIX }}/bin
+        ls ${{ env.PREFIX_UNIX }}
         
     - name: Verify installation
       shell: msys2 {0}
