@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-mingw64:
+    name: Build MinGW-w64 – ${{ matrix.thread }} with ${{ matrix.crt }} for Windows (x86_64)
     runs-on: windows-latest
     permissions:
       contents: write
