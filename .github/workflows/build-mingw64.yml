@@ -45,7 +45,7 @@ jobs:
         git clone https://github.com/mingw-w64/mingw-w64.git
         cd mingw-w64
         # 可选：检出特定版本
-        git checkout tags/v13.1.0 -b v13.1.0
+        git checkout tags/v13.0.0 -b v13.0.0
 
     - name: Build MinGW-w64
       shell: msys2 {0}
