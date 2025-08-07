@@ -83,6 +83,9 @@ jobs:
     - name: Verify installation
       shell: msys2 {0}
       run: |
+        cd ${{ env.PREFIX }}/bin && ls
+        echo "GCC Version:"
+        
         ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc --version
         ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
         
