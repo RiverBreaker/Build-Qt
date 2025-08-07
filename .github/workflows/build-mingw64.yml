@@ -83,7 +83,7 @@ jobs:
         ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
         
     - name: Archive build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mingw64-${{ env.DISPLAY_NAME }}
         path: ${{ env.PREFIX }}
