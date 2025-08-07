@@ -1,0 +1,89 @@
+name: Build MinGW-w64 from source
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-mingw64:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        thread: [posix, win32, mcf]
+        crt: [msvcrt, ucrt]
+    env:
+      ARCH: x86_64
+      HOST_TARGET: x86_64-w64-mingw32
+      PREFIX: C:/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      DISPLAY_NAME: x86_64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          base-devel
+          mingw-w64-x86_64-toolchain
+          git
+          wget
+          tar
+          gzip
+          make
+          autoconf
+          automake
+          libtool
+          
+    - name: Clone MinGW-w64 source
+      shell: msys2 {0}
+      run: |
+        git clone https://github.com/mingw-w64/mingw-w64.git
+        cd mingw-w64
+        # 可选：检出特定版本
+        git checkout tags/v13.1.0 -b v13.1.0
+
+    - name: Build MinGW-w64
+      shell: msys2 {0}
+      run: |
+        cd mingw-w64
+        mkdir build && cd build
+        
+        # 构建配置参数
+        ../mingw-w64-configure \
+          --prefix=${{ env.PREFIX }} \
+          --enable-threads=${{ matrix.thread }} \
+          --enable-languages=c,c++ \
+          --enable-libgomp \
+          --enable-libquadmath \
+          --enable-libssp \
+          --enable-libvtv \
+          --enable-libstdcxx-time=yes \
+          --with-gnu-ld \
+          --disable-symvers \
+          --build=${{ env.HOST_TARGET }} \
+          --host=${{ env.HOST_TARGET }} \
+          --target=${{ env.HOST_TARGET }} \
+          --with-sysroot=${{ env.PREFIX }} \
+          --with-default-msvcrt=${{ matrix.crt }} \
+          --enable-seh
+          
+        # 编译和安装
+        make -j1
+        make install
+        
+    - name: Verify installation
+      shell: msys2 {0}
+      run: |
+        ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc --version
+        ${{ env.PREFIX }}/bin/${{ env.HOST_TARGET }}-gcc -v 2>&1 | grep -E "Thread model|exception|msvcrt"
+        
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: mingw64-${{ env.DISPLAY_NAME }}
+        path: ${{ env.PREFIX }}
