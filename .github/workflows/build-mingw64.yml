@@ -88,7 +88,11 @@ jobs:
       run: |
         cd gcc
         mkdir build && cd build
-        
+
+        export CFLAGS_FOR_TARGET="-I${{ env.PREFIX_UNIX }}/include"
+        export CXXFLAGS_FOR_TARGET="-I${{ env.PREFIX_UNIX }}/include"
+        export LDFLAGS_FOR_TARGET="-L${{ env.PREFIX_UNIX }}/lib"
+
         # 配置GCC使用刚安装的MinGW-w64运行时
         ../configure \
           --prefix=${{ env.PREFIX_UNIX }} \
@@ -96,6 +100,7 @@ jobs:
           --build=${{ env.HOST_TARGET }} \
           --target=${{ env.HOST_TARGET }} \
           --with-sysroot=${{ env.PREFIX_UNIX }} \
+          --with-native-system-header-dir=${{ env.PREFIX_UNIX }}/include \
           --enable-languages=c,c++ \
           --enable-libgomp \
           --enable-libquadmath \
@@ -108,6 +113,7 @@ jobs:
           --with-default-msvcrt=${{ matrix.crt }} \
           --enable-seh \
           --disable-multilib \
+          --disable-nls \
           --with-stage1-ldflags="-static" \
           --with-boot-ldflags="-static"
           
