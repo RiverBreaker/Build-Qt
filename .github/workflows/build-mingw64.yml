@@ -86,7 +86,7 @@ jobs:
     - name: Build and install GCC
       shell: msys2 {0}
       run: |
-        cd gcc-13.2.0
+        cd gcc
         mkdir build && cd build
         
         # 配置GCC使用刚安装的MinGW-w64运行时
