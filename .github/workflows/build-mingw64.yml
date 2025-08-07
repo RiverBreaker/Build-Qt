@@ -58,7 +58,7 @@ jobs:
         mkdir build && cd build
         
         # 构建配置参数
-        ../mingw-w64-configure \
+        ../configure \
           --prefix=${{ env.PREFIX }} \
           --enable-threads=${{ matrix.thread }} \
           --enable-languages=c,c++ \
