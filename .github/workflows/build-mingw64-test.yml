@@ -33,7 +33,10 @@ jobs:
       with:
         update: true
         install: >-
-          base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-isl
+          base-devel
+          mingw-w64-x86_64-gcc       # c/c++ 编译器
+          mingw-w64-x86_64-binutils   # as, ld, objdump, dlltool...
+          mingw-w64-x86_64-isl        # ISL 支持，防止 LTO 检测失败
           git wget tar gzip make autoconf automake libtool
 
     - name: Ensure mingw64 in PATH
@@ -44,26 +47,12 @@ jobs:
     - name: Clone sources
       shell: msys2 {0}
       run: |
-        # MinGW-w64
+        # MinGW-w64 CRT & headers
         git clone https://github.com/mingw-w64/mingw-w64.git
         cd mingw-w64 && git checkout tags/v13.0.0 -b v13.0.0 && cd ..
-        # binutils
-        git clone git://sourceware.org/git/binutils.git binutils
-        cd binutils && git checkout v2.40 && cd ..
         # GCC
         git clone https://github.com/gcc-mirror/gcc.git
         cd gcc && git checkout releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
-
-    - name: Build and install binutils
-      shell: msys2 {0}
-      run: |
-        mkdir build-binutils && cd build-binutils
-        ../binutils/configure \
-          --target=$HOST_TARGET \
-          --prefix=$PREFIX_UNIX \
-          --enable-seh \
-          --disable-multilib
-        make -j1 && make install
 
     - name: Build and install stage1 GCC
       shell: msys2 {0}
@@ -75,7 +64,8 @@ jobs:
           --with-sysroot=$PREFIX_UNIX \
           --disable-multilib \
           --enable-languages=c \
-          --disable-nls
+          --disable-nls \
+          --disable-bootstrap
         make -j1 all-gcc && make install-gcc
 
     - name: Install mingw-w64 headers
@@ -99,7 +89,7 @@ jobs:
           --enable-seh
         make -j1 && make install
 
-    - name: Build and install full GCC
+    - name: Build and install full GCC (stage2)
       shell: msys2 {0}
       run: |
         cd gcc/build-stage1
