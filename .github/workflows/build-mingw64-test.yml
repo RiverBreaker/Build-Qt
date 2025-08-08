@@ -58,7 +58,7 @@ jobs:
           --prefix=$PREFIX_UNIX \
           --enable-seh \
           --disable-multilib
-        make -j$(nproc) && make install
+        make -j1 && make install
 
     - name: Build and install stage1 GCC
       shell: msys2 {0}
@@ -71,7 +71,7 @@ jobs:
           --disable-multilib \
           --enable-languages=c \
           --disable-nls
-        make -j$(nproc) all-gcc && make install-gcc
+        make -j1 all-gcc && make install-gcc
 
     - name: Install mingw-w64 headers
       shell: msys2 {0}
@@ -92,13 +92,13 @@ jobs:
           --enable-threads=${{ matrix.thread }} \
           --with-default-msvcrt=${{ matrix.crt }} \
           --enable-seh
-        make -j$(nproc) && make install
+        make -j1 && make install
 
     - name: Build and install full GCC
       shell: msys2 {0}
       run: |
         cd gcc/build-stage1
-        make -j$(nproc) all-target-libstdc++-v3 all-gomp
+        make -j1 all-target-libstdc++-v3 all-gomp
         make install
 
     - name: Verify installation
@@ -111,4 +111,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: mingw64-${{ env.DISPLAY_NAME }}
-        path: $PREFIX_WIN
+        path: ${{ env.PREFIX_WIN }}
