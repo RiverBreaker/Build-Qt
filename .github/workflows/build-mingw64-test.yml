@@ -34,9 +34,9 @@ jobs:
         update: true
         install: >-
           base-devel
-          mingw-w64-x86_64-gcc       # c/c++ 编译器
-          mingw-w64-x86_64-binutils   # as, ld, objdump, dlltool...
-          mingw-w64-x86_64-isl        # ISL 支持，防止 LTO 检测失败
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-binutils
+          mingw-w64-x86_64-isl
           git wget tar gzip make autoconf automake libtool
 
     - name: Ensure mingw64 in PATH
