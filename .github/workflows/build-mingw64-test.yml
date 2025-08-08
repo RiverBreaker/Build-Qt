@@ -37,6 +37,7 @@ jobs:
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-binutils
           mingw-w64-x86_64-isl
+          mingw-w64-x86_64-7zip
           git wget tar gzip make autoconf automake libtool
 
     - name: Ensure mingw64 in PATH
@@ -99,7 +100,6 @@ jobs:
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --with-sysroot=$PREFIX_UNIX \
-          --with-native-system-header-dir=/include \
           --disable-multilib \
           --enable-languages=c,c++ \
           --enable-libgomp \
