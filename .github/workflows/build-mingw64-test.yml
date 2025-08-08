@@ -48,8 +48,8 @@ jobs:
         git clone https://github.com/mingw-w64/mingw-w64.git
         cd mingw-w64 && git checkout tags/v13.0.0 -b v13.0.0 && cd ..
         # binutils
-        git clone git://sourceware.org/git/binutils-gdb.git
-        cd binutils-gdb && git checkout v2.40 && cd ..
+        git clone git://sourceware.org/git/binutils.git binutils
+        cd binutils && git checkout v2.40 && cd ..
         # GCC
         git clone https://github.com/gcc-mirror/gcc.git
         cd gcc && git checkout releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
@@ -58,7 +58,7 @@ jobs:
       shell: msys2 {0}
       run: |
         mkdir build-binutils && cd build-binutils
-        ../binutils-gdb/configure \
+        ../binutils/configure \
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --enable-seh \
