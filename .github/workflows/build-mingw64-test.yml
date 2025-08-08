@@ -52,7 +52,7 @@ jobs:
         cd mingw-w64 && git checkout tags/v13.0.0 -b v13.0.0 && cd ..
         # GCC
         git clone https://github.com/gcc-mirror/gcc.git
-        cd gcc && git checkout releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
+        cd gcc && git checkout tags/releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
 
     - name: Install mingw-w64 headers
       shell: msys2 {0}
@@ -93,7 +93,8 @@ jobs:
     - name: Build and install full GCC (stage2)
       shell: msys2 {0}
       run: |
-        cd gcc/build-stage1
+        cd gcc
+        mkdir build-stage2 && cd build-stage2
         make -j1 all-target-libstdc++-v3 all-gomp
         make install
 
