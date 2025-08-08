@@ -33,7 +33,7 @@ jobs:
       with:
         update: true
         install: >-
-          base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-binutils
+          base-devel mingw-w64-x86_64-toolchain
           git wget tar gzip make autoconf automake libtool
 
     - name: Ensure mingw64 in PATH
