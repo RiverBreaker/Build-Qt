@@ -54,6 +54,14 @@ jobs:
         git clone https://github.com/gcc-mirror/gcc.git
         cd gcc && git checkout releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
 
+    - name: Install mingw-w64 headers
+      shell: msys2 {0}
+      run: |
+        cd mingw-w64/mingw-w64-headers
+        mkdir build-headers && cd build-headers
+        ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
+        make install
+    
     - name: Build and install stage1 GCC
       shell: msys2 {0}
       run: |
@@ -62,19 +70,12 @@ jobs:
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --with-sysroot=$PREFIX_UNIX \
+          --with-native-system-header-dir=/include \
           --disable-multilib \
           --enable-languages=c \
           --disable-nls \
           --disable-bootstrap
         make -j1 all-gcc && make install-gcc
-
-    - name: Install mingw-w64 headers
-      shell: msys2 {0}
-      run: |
-        cd mingw-w64/mingw-w64-headers
-        mkdir build-headers && cd build-headers
-        ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
-        make install
 
     - name: Build and install mingw-w64 CRT
       shell: msys2 {0}
