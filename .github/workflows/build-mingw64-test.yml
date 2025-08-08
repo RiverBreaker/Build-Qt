@@ -95,7 +95,19 @@ jobs:
       run: |
         cd gcc
         mkdir build-stage2 && cd build-stage2
-        make -j1 all-target-libstdc++-v3 all-gomp
+        ../configure \
+          --target=$HOST_TARGET \
+          --prefix=$PREFIX_UNIX \
+          --with-sysroot=$PREFIX_UNIX \
+          --with-native-system-header-dir=/include \
+          --disable-multilib \
+          --enable-languages=c,c++ \
+          --enable-libgomp \
+          --disable-nls \
+          --enable-threads=${{ matrix.thread }} \
+          --with-default-msvcrt=${{ matrix.crt }} \
+          --enable-seh
+        make -j1 all
         make install
 
     - name: Verify installation
