@@ -33,8 +33,13 @@ jobs:
       with:
         update: true
         install: >-
-          base-devel
+          base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-binutils
           git wget tar gzip make autoconf automake libtool
+
+    - name: Ensure mingw64 in PATH
+      shell: msys2 {0}
+      run: |
+        export PATH="/mingw64/bin:$PATH"
 
     - name: Clone sources
       shell: msys2 {0}
