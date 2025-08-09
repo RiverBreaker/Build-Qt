@@ -1,0 +1,194 @@
+name: Build MinGW-w64 toolchain
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-mingw64:
+    name: Build MinGW-w64 – ${{ matrix.thread }} / ${{ matrix.crt }} (x86_64)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        thread: [posix, win32, mcf]
+        crt: [msvcrt, ucrt]
+        exclude:
+          - thread: mcf
+            crt: msvcrt
+    env:
+      ARCH: x86_64
+      HOST_TARGET: x86_64-w64-mingw32
+      # 目标安装前缀（Unix 风格路径，用于 configure/make install）
+      PREFIX_UNIX: /c/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      # Windows 风格路径，便于上传/归档
+      PREFIX_WIN: C:/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+      DISPLAY_NAME: x86_64-${{ matrix.thread }}-seh-${{ matrix.crt }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (MINGW64) and install build dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MINGW64
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-isl
+            mingw-w64-x86_64-7zip
+            mingw-w64-x86_64-gmp
+            mingw-w64-x86_64-mpfr
+            mingw-w64-x86_64-mpc
+            git wget tar gzip make autoconf automake libtool pkg-config
+
+      - name: Ensure mingw64 in PATH
+        shell: msys2 {0}
+        run: |
+          export PATH="/mingw64/bin:$PATH"
+          echo "PATH=$PATH"
+
+      - name: Clone sources (mingw-w64, gcc)
+        shell: msys2 {0}
+        run: |
+          set -e
+          # mingw-w64 (CRT + headers)
+          if [ ! -d mingw-w64 ]; then
+            git clone https://github.com/mingw-w64/mingw-w64.git
+          fi
+          cd mingw-w64
+          git fetch --all --tags
+          git checkout tags/v13.0.0 -b v13.0.0 || true
+          cd ..
+
+          # gcc sources
+          if [ ! -d gcc ]; then
+            git clone https://github.com/gcc-mirror/gcc.git
+          fi
+          cd gcc
+          git fetch --all --tags
+          # 使用带 release 标签的分支/标签
+          git checkout releases/gcc-13.2.0 || git checkout tags/gcc-13.2.0 || true
+          # 下载 prerequisites（会把 gmp/mpfr/mpc/isl 放到源码树）
+          contrib/download_prerequisites || true
+          cd ..
+
+      - name: Install mingw-w64 headers
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd mingw-w64/mingw-w64-headers
+          mkdir -p build-headers && cd build-headers
+          ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
+          make -j1 install
+          echo "Installed headers to $PREFIX_UNIX/include"
+          ls -la $PREFIX_UNIX || true
+
+      - name: Make header paths expected by GCC (mirror /mingw/include and target-specific include)
+        shell: msys2 {0}
+        run: |
+          set -e
+          # some GCC fixinc logic expects ${sysroot}/mingw/include and
+          # ${sysroot}/x86_64-w64-mingw32/include. Ensure they exist and contain the headers.
+          mkdir -p $PREFIX_UNIX/mingw/include
+          mkdir -p $PREFIX_UNIX/x86_64-w64-mingw32/include
+          # copy header content (safe and simple)
+          cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/mingw/include/ || true
+          cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/x86_64-w64-mingw32/include/ || true
+          ls -la $PREFIX_UNIX/mingw | head -n 50 || true
+
+      - name: Build and install stage1 GCC (C-only, no bootstrap)
+        shell: msys2 {0}
+        run: |
+          set -e
+          mkdir -p gcc/build-stage1 && cd gcc/build-stage1
+          ../configure \
+            --target=$HOST_TARGET \
+            --prefix=$PREFIX_UNIX \
+            --with-sysroot=$PREFIX_UNIX \
+            --with-native-system-header-dir=/include \
+            --disable-multilib \
+            --enable-languages=c \
+            --disable-nls \
+            --disable-bootstrap \
+            --disable-shared --enable-static
+          make -j1 all-gcc
+          make install-gcc
+          # 安装 libgcc 以便 CRT 构建可以使用目标 gcc
+          make -j1 all-target-libgcc || true
+          make install-target-libgcc || true
+          echo "Stage1 gcc installed to $PREFIX_UNIX"
+          ls -la $PREFIX_UNIX/bin || true
+
+      - name: Build and install mingw-w64 CRT (depends on stage1 gcc)
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd mingw-w64/mingw-w64-crt
+          mkdir -p build-crt && cd build-crt
+          ../configure \
+            --host=$HOST_TARGET \
+            --prefix=$PREFIX_UNIX \
+            --enable-threads=${{ matrix.thread }} \
+            --with-default-msvcrt=${{ matrix.crt }} \
+            --enable-seh
+          make -j1
+          make install
+          echo "CRT installed to $PREFIX_UNIX"
+          # 再次 ensure the mingw include tree exists (CRT may have populated some)
+          ls -la $PREFIX_UNIX/mingw || true
+          ls -la $PREFIX_UNIX/x86_64-w64-mingw32 || true
+
+      - name: (safety) copy headers again after CRT install
+        shell: msys2 {0}
+        run: |
+          # CRT install sometimes adds/overwrites headers under $PREFIX_UNIX/include and $PREFIX_UNIX/mingw/include.
+          # Ensure both expected include trees exist for GCC fixinc logic.
+          mkdir -p $PREFIX_UNIX/mingw/include
+          mkdir -p $PREFIX_UNIX/x86_64-w64-mingw32/include
+          cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/mingw/include/ || true
+          cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/x86_64-w64-mingw32/include/ || true
+          ls -la $PREFIX_UNIX/mingw/include | head -n 40 || true
+
+      - name: Build and install full GCC (stage2: C, C++)
+        shell: msys2 {0}
+        run: |
+          set -e
+          cd gcc
+          mkdir -p build-stage2 && cd build-stage2
+          ../configure \
+            --target=$HOST_TARGET \
+            --prefix=$PREFIX_UNIX \
+            --with-sysroot=$PREFIX_UNIX \
+            --with-native-system-header-dir=/include \
+            --disable-multilib \
+            --enable-languages=c,c++ \
+            --enable-libgomp \
+            --disable-nls \
+            --enable-threads=${{ matrix.thread }} \
+            --with-default-msvcrt=${{ matrix.crt }} \
+            --enable-seh \
+            --disable-shared --enable-static
+          # 全量构建（时间很长）
+          make -j1 all
+          make install
+
+      - name: Verify installation
+        shell: msys2 {0}
+        run: |
+          echo "Contents of $PREFIX_UNIX/bin:"
+          ls -la $PREFIX_UNIX/bin || true
+          echo "GCC version (target):"
+          $PREFIX_UNIX/bin/$HOST_TARGET-gcc --version || true
+          echo "G++ version (target):"
+          $PREFIX_UNIX/bin/$HOST_TARGET-g++ --version || true
+
+      - name: Archive artifacts (mingw folder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mingw64-${{ env.DISPLAY_NAME }}
+          path: ${{ env.PREFIX_WIN }}
