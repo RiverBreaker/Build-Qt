@@ -179,7 +179,7 @@ jobs:
           cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/x86_64-w64-mingw32/include/ || true
           ls -la $PREFIX_UNIX/mingw/include | head -n 40 || true
 
-      - name: Build and install full GCC (stage2: C, C++)
+      - name: Build and install full GCC (stage2(C, C++))
         shell: msys2 {0}
         run: |
           set -e
