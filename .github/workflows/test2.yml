@@ -34,23 +34,48 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          msystem: MINGW64
           install: >-
             base-devel
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-binutils
-            mingw-w64-x86_64-isl
-            mingw-w64-x86_64-7zip
-            mingw-w64-x86_64-gmp
-            mingw-w64-x86_64-mpfr
-            mingw-w64-x86_64-mpc
             git wget tar gzip make autoconf automake libtool pkg-config
 
-      - name: Ensure mingw64 in PATH
+      - name: Install mingw toolchain & ensure PATH (CRT-specific)
         shell: msys2 {0}
         run: |
-          export PATH="/mingw64/bin:$PATH"
-          echo "PATH=$PATH"
+          echo "CRT = ${{ matrix.crt }}"
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            echo "Installing UCRT toolchain packages..."
+            pacman -Sy --noconfirm --needed \
+              mingw-w64-ucrt-x86_64-gcc \
+              mingw-w64-ucrt-x86_64-binutils \
+              mingw-w64-ucrt-x86_64-isl \
+              mingw-w64-ucrt-x86_64-7zip \
+              mingw-w64-ucrt-x86_64-gmp \
+              mingw-w64-ucrt-x86_64-mpfr \
+              mingw-w64-ucrt-x86_64-mpc
+          else
+            echo "Installing MSVCRT (MINGW64) toolchain packages..."
+            pacman -Sy --noconfirm --needed \
+              mingw-w64-x86_64-gcc \
+              mingw-w64-x86_64-binutils \
+              mingw-w64-x86_64-isl \
+              mingw-w64-x86_64-7zip \
+              mingw-w64-x86_64-gmp \
+              mingw-w64-x86_64-mpfr \
+              mingw-w64-x86_64-mpc
+          fi
+
+          # ensure correct bin in PATH for subsequent steps
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+            echo "PATH set to: $PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+            echo "PATH set to: $PATH"
+          fi
+
+          # verify
+          which gcc || true
+          $HOST_TARGET-gcc --version || true
 
       - name: Clone sources (mingw-w64, gcc)
         shell: msys2 {0}
