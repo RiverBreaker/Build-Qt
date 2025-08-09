@@ -71,7 +71,6 @@ jobs:
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --with-sysroot=$PREFIX_UNIX \
-          --with-native-system-header-dir=/include \
           --disable-multilib \
           --enable-languages=c \
           --disable-nls \
@@ -100,6 +99,7 @@ jobs:
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --with-sysroot=$PREFIX_UNIX \
+          --with-native-system-header-dir=/mingw/include \
           --disable-multilib \
           --enable-languages=c,c++ \
           --enable-libgomp \
