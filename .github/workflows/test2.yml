@@ -106,6 +106,12 @@ jobs:
         shell: msys2 {0}
         run: |
           set -e
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
+
           cd mingw-w64/mingw-w64-headers
           mkdir -p build-headers && cd build-headers
           ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
@@ -117,6 +123,11 @@ jobs:
         shell: msys2 {0}
         run: |
           set -e
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
           # some GCC fixinc logic expects ${sysroot}/mingw/include and
           # ${sysroot}/x86_64-w64-mingw32/include. Ensure they exist and contain the headers.
           mkdir -p $PREFIX_UNIX/mingw/include
@@ -130,6 +141,11 @@ jobs:
         shell: msys2 {0}
         run: |
           set -e
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
           mkdir -p gcc/build-stage1 && cd gcc/build-stage1
           ../configure \
             --target=$HOST_TARGET \
@@ -153,6 +169,11 @@ jobs:
         shell: msys2 {0}
         run: |
           set -e
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
           cd mingw-w64/mingw-w64-crt
           mkdir -p build-crt && cd build-crt
           ../configure \
@@ -171,6 +192,11 @@ jobs:
       - name: (safety) copy headers again after CRT install
         shell: msys2 {0}
         run: |
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
           # CRT install sometimes adds/overwrites headers under $PREFIX_UNIX/include and $PREFIX_UNIX/mingw/include.
           # Ensure both expected include trees exist for GCC fixinc logic.
           mkdir -p $PREFIX_UNIX/mingw/include
@@ -183,6 +209,11 @@ jobs:
         shell: msys2 {0}
         run: |
           set -e
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="/mingw64/bin:/usr/bin:$PATH"
+          fi
           cd gcc
           mkdir -p build-stage2 && cd build-stage2
           ../configure \
