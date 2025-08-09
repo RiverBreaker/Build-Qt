@@ -210,9 +210,9 @@ jobs:
         run: |
           set -e
           if [ "${{ matrix.crt }}" = "ucrt" ]; then
-            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/ucrt64/bin:/usr/bin:$PATH"
           else
-            export PATH="/mingw64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/mingw64/bin:/usr/bin:$PATH"
           fi
           cd gcc
           mkdir -p build-stage2 && cd build-stage2
