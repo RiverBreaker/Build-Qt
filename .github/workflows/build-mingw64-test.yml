@@ -63,20 +63,6 @@ jobs:
         ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
         make install
     
-    - name: Build and install stage1 GCC
-      shell: msys2 {0}
-      run: |
-        mkdir gcc/build-stage1 && cd gcc/build-stage1
-        ../configure \
-          --target=$HOST_TARGET \
-          --prefix=$PREFIX_UNIX \
-          --with-sysroot=$PREFIX_UNIX \
-          --disable-multilib \
-          --enable-languages=c \
-          --disable-nls \
-          --disable-bootstrap
-        make -j1 all-gcc && make install-gcc
-
     - name: Build and install mingw-w64 CRT
       shell: msys2 {0}
       run: |
@@ -89,6 +75,22 @@ jobs:
           --with-default-msvcrt=${{ matrix.crt }} \
           --enable-seh
         make -j1 && make install
+        ls -l $PREFIX_UNIX
+        
+    - name: Build and install stage1 GCC
+      shell: msys2 {0}
+      run: |
+        mkdir gcc/build-stage1 && cd gcc/build-stage1
+        ../configure \
+          --target=$HOST_TARGET \
+          --prefix=$PREFIX_UNIX \
+          --with-sysroot=$PREFIX_UNIX \
+          --with-native-system-header-dir=/include \
+          --disable-multilib \
+          --enable-languages=c \
+          --disable-nls \
+          --disable-bootstrap
+        make -j1 all-gcc && make install-gcc
 
     - name: Build and install full GCC (stage2)
       shell: msys2 {0}
@@ -99,7 +101,7 @@ jobs:
           --target=$HOST_TARGET \
           --prefix=$PREFIX_UNIX \
           --with-sysroot=$PREFIX_UNIX \
-          --with-native-system-header-dir=/mingw/include \
+          --with-native-system-header-dir=/include \
           --disable-multilib \
           --enable-languages=c,c++ \
           --enable-libgomp \
