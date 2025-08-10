@@ -9,11 +9,9 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        thread: [posix, win32, mcf]
+        thread: [posix, win32]
         crt: [msvcrt, ucrt]
-        exclude:
-          - thread: mcf
-            crt: msvcrt
+
     env:
       ARCH: x86_64
       HOST_TARGET: x86_64-w64-mingw32
@@ -51,7 +49,8 @@ jobs:
               mingw-w64-ucrt-x86_64-7zip \
               mingw-w64-ucrt-x86_64-gmp \
               mingw-w64-ucrt-x86_64-mpfr \
-              mingw-w64-ucrt-x86_64-mpc
+              mingw-w64-ucrt-x86_64-mpc \
+              mingw-w64-ucrt-x86_64-toolchain
           else
             echo "Installing MSVCRT (MINGW64) toolchain packages..."
             pacman -Sy --noconfirm --needed \
@@ -61,7 +60,8 @@ jobs:
               mingw-w64-x86_64-7zip \
               mingw-w64-x86_64-gmp \
               mingw-w64-x86_64-mpfr \
-              mingw-w64-x86_64-mpc
+              mingw-w64-x86_64-mpc \
+              mingw-w64-x86_64-toolchain
           fi
 
           # ensure correct bin in PATH for subsequent steps
@@ -87,7 +87,7 @@ jobs:
           fi
           cd mingw-w64
           git fetch --all --tags
-          git checkout tags/v13.0.0 -b v13.0.0 || true
+          git checkout tags/v11.0.1 -b v11.0.1 || true
           cd ..
 
           # gcc sources
@@ -160,8 +160,8 @@ jobs:
           make -j1 all-gcc
           make install-gcc
           # 安装 libgcc 以便 CRT 构建可以使用目标 gcc
-          make -j1 all-target-libgcc || true
-          make install-target-libgcc || true
+          make -j1 all-target-libgcc
+          make install-target-libgcc
           echo "Stage1 gcc installed to $PREFIX_UNIX"
           ls -la $PREFIX_UNIX/bin || true
 
@@ -226,6 +226,36 @@ jobs:
           cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/mingw/include/ || true
           cp -a $PREFIX_UNIX/include/* $PREFIX_UNIX/x86_64-w64-mingw32/include/ || true
           ls -la $PREFIX_UNIX/mingw/include | head -n 40 || true
+
+      - name: Build and install winpthreads (required for posix threads)
+        if: matrix.thread == 'posix'
+        shell: msys2 {0}
+        run: |
+          set -e
+          # 确保使用刚安装的 target gcc（stage1）来构建 winpthreads
+          if [ "${{ matrix.crt }}" = "ucrt" ]; then
+            export PATH="$PREFIX_UNIX/bin:/ucrt64/bin:/usr/bin:$PATH"
+          else
+            export PATH="$PREFIX_UNIX/bin:/mingw64/bin:/usr/bin:$PATH"
+          fi
+          cd mingw-w64
+          # 源码树中通常有 winpthreads 文件夹（根目录下）
+          if [ -d winpthreads ]; then
+            cd winpthreads
+          else
+            # 有些树可能把 winpthreads 放在 mingw-w64-libraries/winpthreads
+            cd mingw-w64-libraries/winpthreads || true
+          fi
+          mkdir -p build-winpthreads && cd build-winpthreads
+          ../configure \
+            --host=$HOST_TARGET \
+            --prefix=$PREFIX_UNIX \
+            --enable-static \
+            --disable-shared
+          make -j1 && make install
+          echo "winpthreads installed to $PREFIX_UNIX (include and lib)"
+          ls -la $PREFIX_UNIX/include | sed -n '1,200p'
+          ls -la $PREFIX_UNIX/lib | sed -n '1,200p'
 
       - name: Build and install full GCC (stage2(C, C++))
         shell: msys2 {0}
