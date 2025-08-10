@@ -170,9 +170,9 @@ jobs:
         run: |
           set -e
           if [ "${{ matrix.crt }}" = "ucrt" ]; then
-            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/ucrt64/bin:/usr/bin:$PATH"
           else
-            export PATH="/mingw64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/mingw64/bin:/usr/bin:$PATH"
           fi
           cd mingw-w64/mingw-w64-crt
           mkdir -p build-crt && cd build-crt
@@ -189,13 +189,35 @@ jobs:
           ls -la $PREFIX_UNIX/mingw || true
           ls -la $PREFIX_UNIX/x86_64-w64-mingw32 || true
 
+          # 保证优先使用新安装的 target 工具
+          export PATH="$PREFIX_UNIX/bin:$PATH"
+
+          echo "=== which & version checks ==="
+          which $HOST_TARGET-gcc || true
+          $HOST_TARGET-gcc -v || true
+          echo "=== wrapper xgcc info ==="
+          ls -l $PREFIX_UNIX/bin | sed -n '1,200p'
+
+          echo "=== 检查 libgcc / startup files / lib 位置 ==="
+          ls -la $PREFIX_UNIX/lib/gcc/$HOST_TARGET || true
+          ls -la $PREFIX_UNIX/lib/gcc/$HOST_TARGET/* || true
+
+          echo "=== 检查目标 lib 目录和 crt 文件 ==="
+          ls -la $PREFIX_UNIX/$HOST_TARGET/lib || true
+          ls -la $PREFIX_UNIX/lib || true
+
+          echo "=== 检查 include 布局（fixinc 期望） ==="
+          ls -la $PREFIX_UNIX/include | sed -n '1,200p' || true
+          ls -la $PREFIX_UNIX/mingw/include | sed -n '1,200p' || true
+          ls -la $PREFIX_UNIX/x86_64-w64-mingw32/include | sed -n '1,200p' || true
+
       - name: (safety) copy headers again after CRT install
         shell: msys2 {0}
         run: |
           if [ "${{ matrix.crt }}" = "ucrt" ]; then
-            export PATH="/ucrt64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/ucrt64/bin:/usr/bin:$PATH"
           else
-            export PATH="/mingw64/bin:/usr/bin:$PATH"
+            export PATH="$PREFIX_UNIX/bin:/mingw64/bin:/usr/bin:$PATH"
           fi
           # CRT install sometimes adds/overwrites headers under $PREFIX_UNIX/include and $PREFIX_UNIX/mingw/include.
           # Ensure both expected include trees exist for GCC fixinc logic.
