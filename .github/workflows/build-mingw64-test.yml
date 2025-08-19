@@ -10,116 +10,14 @@ jobs:
     permissions:
       contents: write
 
-    strategy:
-      matrix:
-        thread: [posix, win32, mcf]
-        crt: [msvcrt, ucrt]
-        exclude:
-          - thread: mcf
-            crt: msvcrt
-    env:
-      ARCH: x86_64
-      HOST_TARGET: x86_64-w64-mingw32
-      PREFIX_UNIX: /c/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
-      PREFIX_WIN: C:/mingw64-${{ matrix.thread }}-seh-${{ matrix.crt }}
-      DISPLAY_NAME: x86_64-${{ matrix.thread }}-seh-${{ matrix.crt }}
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup MSYS2
       uses: msys2/setup-msys2@v2
-      with:
-        update: true
-        install: >-
-          base-devel
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-binutils
-          mingw-w64-x86_64-isl
-          mingw-w64-x86_64-7zip
-          git wget tar gzip make autoconf automake libtool
 
-    - name: Ensure mingw64 in PATH
+    - name: ls path
       shell: msys2 {0}
       run: |
-        export PATH="/mingw64/bin:$PATH"
-
-    - name: Clone sources
-      shell: msys2 {0}
-      run: |
-        # MinGW-w64 CRT & headers
-        git clone https://github.com/mingw-w64/mingw-w64.git
-        cd mingw-w64 && git checkout tags/v13.0.0 -b v13.0.0 && cd ..
-        # GCC
-        git clone https://github.com/gcc-mirror/gcc.git
-        cd gcc && git checkout tags/releases/gcc-13.2.0 && contrib/download_prerequisites && cd ..
-
-    - name: Install mingw-w64 headers
-      shell: msys2 {0}
-      run: |
-        cd mingw-w64/mingw-w64-headers
-        mkdir build-headers && cd build-headers
-        ../configure --host=$HOST_TARGET --prefix=$PREFIX_UNIX
-        make install
-    
-    - name: Build and install mingw-w64 CRT
-      shell: msys2 {0}
-      run: |
-        cd mingw-w64/mingw-w64-crt
-        mkdir build-crt && cd build-crt
-        ../configure \
-          --host=$HOST_TARGET \
-          --prefix=$PREFIX_UNIX \
-          --enable-threads=${{ matrix.thread }} \
-          --with-default-msvcrt=${{ matrix.crt }} \
-          --enable-seh
-        make -j1 && make install
-        ls -l $PREFIX_UNIX
-        
-    - name: Build and install stage1 GCC
-      shell: msys2 {0}
-      run: |
-        mkdir gcc/build-stage1 && cd gcc/build-stage1
-        ../configure \
-          --target=$HOST_TARGET \
-          --prefix=$PREFIX_UNIX \
-          --with-sysroot=$PREFIX_UNIX \
-          --with-native-system-header-dir=/include \
-          --disable-multilib \
-          --enable-languages=c \
-          --disable-nls \
-          --disable-bootstrap
-        make -j1 all-gcc && make install-gcc
-
-    - name: Build and install full GCC (stage2)
-      shell: msys2 {0}
-      run: |
-        cd gcc
-        mkdir build-stage2 && cd build-stage2
-        ../configure \
-          --target=$HOST_TARGET \
-          --prefix=$PREFIX_UNIX \
-          --with-sysroot=$PREFIX_UNIX \
-          --with-native-system-header-dir=/include \
-          --disable-multilib \
-          --enable-languages=c,c++ \
-          --enable-libgomp \
-          --disable-nls \
-          --enable-threads=${{ matrix.thread }} \
-          --with-default-msvcrt=${{ matrix.crt }} \
-          --enable-seh
-        make -j1 all
-        make install
-
-    - name: Verify installation
-      shell: msys2 {0}
-      run: |
-        ls -l $PREFIX_UNIX/bin
-        $PREFIX_UNIX/bin/$HOST_TARGET-gcc --version
-
-    - name: Archive build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: mingw64-${{ env.DISPLAY_NAME }}
-        path: ${{ env.PREFIX_WIN }}
+        ls
