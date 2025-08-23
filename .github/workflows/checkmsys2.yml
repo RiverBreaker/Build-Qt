@@ -28,6 +28,7 @@ jobs:
       - name: find gcc
         shell: msys2 {0}
         run: |
+          export MSYSTEM=MSYS
           which /usr/bin/gcc
           /usr/bin/gcc --version
           ls /usr/bin/gcc*
