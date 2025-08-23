@@ -28,5 +28,6 @@ jobs:
       - name: find gcc
         shell: msys2 {0}
         run: |
-          which gcc
+          /usr/bin/gcc --version
+          ls /usr/bin/gcc*
         
