@@ -29,6 +29,8 @@ jobs:
       - name: find gcc
         shell: cmd
         run: |
-          where /r %SystemDrive%\ gcc.exe
-
-        
+          where /r C:\ProgramData\Chocolatey gcc.exe || (call )
+          where /r C:\Strawberry gcc.exe             || (call )
+          where /r C:\mingw64 gcc.exe                || (call )
+          where /r C:\msys64\mingw64\bin gcc.exe     || (call )
+  
