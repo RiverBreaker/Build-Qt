@@ -1,0 +1,32 @@
+name: check msys2 env
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  check-msys-env:
+    name: check-msys-env
+    runs-on: windows-latest
+
+    default:
+      runs: { shell: 'msys2 {0}' }
+
+    steps:
+      - name: CheckOut
+        uses: actions/checkout@v4
+
+      - name: Set Msys2 Env
+        uses: msys2/setup-msys2@v2
+        with: 
+          update: true
+
+      - name: PWD
+        run: |
+          pwd
+      - name: ls
+        run: |
+          ls
+      - name: find gcc
+        run: |
+          which gcc
+        
