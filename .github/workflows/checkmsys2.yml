@@ -29,5 +29,6 @@ jobs:
       - name: find gcc
         shell: cmd
         run: |
-          where /r C:\ gcc.exe || where /r D:\ gcc.exe
+          where /r %SystemDrive%\ gcc.exe
+
         
