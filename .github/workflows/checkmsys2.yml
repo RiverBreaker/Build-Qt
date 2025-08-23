@@ -8,9 +8,6 @@ jobs:
     name: check-msys-env
     runs-on: windows-latest
 
-    default:
-      runs: { shell: 'msys2 {0}' }
-
     steps:
       - name: CheckOut
         uses: actions/checkout@v4
@@ -21,12 +18,15 @@ jobs:
           update: true
 
       - name: PWD
+        shell: msys2 {0}
         run: |
           pwd
       - name: ls
+        shell: msys2 {0}
         run: |
           ls
       - name: find gcc
+        shell: msys2 {0}
         run: |
           which gcc
         
