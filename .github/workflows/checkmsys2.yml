@@ -15,6 +15,7 @@ jobs:
       - name: Set Msys2 Env
         uses: msys2/setup-msys2@v2
         with: 
+          msystem: MSYS
           update: true
 
       - name: PWD
@@ -28,5 +29,18 @@ jobs:
       - name: find gcc
         shell: msys2 {0}
         run: |
-          ls /usr/bin/
+          which gcc || echo "No gcc in MSYS environment"
+          # 检查 MINGW64 环境是否有 gcc
+          export MSYSTEM=MINGW64
+          echo -e "\nMINGW64 environment:"
+          echo "Checking /mingw64/bin/gcc:"
+          if [ -f "/mingw64/bin/gcc.exe" ]; then
+            echo "/mingw64/bin/gcc.exe exists"
+            /mingw64/bin/gcc --version
+          else
+            echo "/mingw64/bin/gcc.exe does NOT exist"
+          fi
+          
+          echo -e "\nContents of /mingw64/bin:"
+          ls /mingw64/bin/ | grep -E 'gcc|g\+\+'
         
