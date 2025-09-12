@@ -52,14 +52,20 @@ jobs:
         run: |
           echo "🔧 Installing build tools via Homebrew..."
           brew update
-          brew install cmake ninja openssl gperf
+          for tool in cmake ninja openssl gperf; do
+            if brew list --formula "$tool" &>/dev/null; then
+              echo "⚠️  $tool already installed, skipping..."
+            else
+              echo "📦  Installing $tool..."
+              brew install "$tool"
+            fi
+          done
           echo "🔍 Installed tool locations:"
           for tool in cmake ninja openssl gperf; do
             which $tool || echo "$tool not found in PATH"
           done
           clang --version
           
-
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: bash
