@@ -34,8 +34,8 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 5120
-          swap-size-mb: 2048
+          root-reserve-mb: 6144
+          swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -49,76 +49,6 @@ jobs:
 
           BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
           sudo mkdir -p "$BUILD_VOL/.runner"
-
-          DIAG_NEW="$BUILD_VOL/.runner/_diag"
-          sudo mkdir -p "$DIAG_NEW"
-
-          # 1) 如果已有日志，先复制到构建卷（保留历史）
-          if [[ -d /home/runner/actions-runner/cached/_diag ]]; then
-            echo "Copying existing diag logs to $DIAG_NEW ..."
-            sudo rsync -aHAX --delete /home/runner/actions-runner/cached/_diag/ "$DIAG_NEW/" || true
-            sudo chown -R runner:runner "$DIAG_NEW" || true
-
-            # 2) 在原路径截断日志文件以释放空间（不会删除文件路径）
-            echo "Truncating original log files in-place to free space ..."
-            sudo find /home/runner/actions-runner/cached/_diag -type f -print0 \
-              | while IFS= read -r -d '' file; do
-                  # 仅截断常见日志文件，避免对非日志（例如 socket/特殊文件）误操作
-                  # 如果你只想截断 *.log, 可替换 find 条件为 -name '*.log'
-                  echo "Truncating: $file"
-                  sudo truncate -s 0 "$file" || true
-                done
-          else
-            echo "No existing /home/runner/actions-runner/cached/_diag found — creating target dir only."
-          fi
-
-          # 3) 尝试清理 'deleted but open' 的句柄（如果存在）
-          #    先列出有问题的 PID（如果没有输出则跳过）
-          DELETED_PIDS=$(sudo lsof +L1 -t || true)
-          if [[ -n "${DELETED_PIDS// /}" ]]; then
-            echo "Found processes holding deleted files: $DELETED_PIDS"
-            echo "Attempting to truncate their open fds via /proc/.../fd/..."
-            echo "Detecting processes that hold deleted files..."
-            # 获取持有 deleted-but-open 文件的 PID 列表（唯一）
-            PIDS=$(sudo lsof +L1 -t || true)
-            if [[ -z "$PIDS" ]]; then
-              echo "No processes holding deleted files found."
-              exit 0
-            fi
-
-            echo "PIDs found: $PIDS"
-            for pid in $PIDS; do
-              if ! sudo kill -0 "$pid" 2>/dev/null; then
-                echo "PID $pid is not running any more - skipping"
-                continue
-              fi
-
-              echo "=== PID $pid info ==="
-              sudo ps -p "$pid" -o pid,ppid,user,cmd --no-headers || true
-              echo "Open fds (showing deleted ones):"
-              sudo ls -l /proc/"$pid"/fd || true
-
-              # 针对每个 fd，如果指向 "(deleted)"，尝试 truncate（忽略错误）
-              for fdpath in /proc/"$pid"/fd/*; do
-                [ -e "$fdpath" ] || continue
-                target=$(readlink "$fdpath" 2>/dev/null || true)
-                if [[ "$target" == *"(deleted)"* ]]; then
-                  echo "Truncating fd $fdpath -> $target"
-                  # 尝试 truncate，若失败再尝试 shell 重定向（两种方式取其一）
-                  sudo truncate -s 0 "$fdpath" 2>/dev/null || sudo bash -c '> "$fdpath"' 2>/dev/null || echo "truncate failed (ignored)"
-                fi
-              done
-
-              echo "Done with PID $pid"
-              echo
-            done
-
-            echo "Check disk usage and remaining deleted-but-open files:"
-            df -h || true
-            sudo lsof +L1 || true
-          else
-            echo "No deleted-but-open files found."
-          fi
 
           # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
           NEW_TEMP="$BUILD_VOL/.runner/tmp"
