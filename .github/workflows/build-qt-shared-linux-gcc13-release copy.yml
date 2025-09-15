@@ -34,7 +34,7 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 512
+          root-reserve-mb: 10240
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
@@ -44,49 +44,6 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Redirect Runner logs / temp / cache to build volume
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # 1. 确定构建卷目录（$GITHUB_WORKSPACE 就在里面）
-          BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
-          sudo mkdir -p "$BUILD_VOL/.runner"  # 统一放 runner 相关数据
-
-          # 2. 日志目录
-          DIAG_SRC="$BUILD_VOL/.runner/_diag"
-          DIAG_DST="/home/runner/actions-runner/cached/_diag"
-          sudo mkdir -p "$DIAG_SRC"
-          # 如果目标已存在，先搬内容（避免丢日志）
-          [[ -d "$DIAG_DST" ]] && sudo rsync -aHAX "$DIAG_DST/" "$DIAG_SRC/" || true
-          sudo mkdir -p "$(dirname "$DIAG_DST")"
-          sudo mount --bind "$DIAG_SRC" "$DIAG_DST"
-
-          # 3. 临时目录（actions 自己用的 RUNNER_TEMP）
-          NEW_TEMP="$BUILD_VOL/.runner/tmp"
-          sudo mkdir -p "$NEW_TEMP"
-          sudo chmod 1777 "$NEW_TEMP"
-          echo "RUNNER_TEMP=$NEW_TEMP" >> "$GITHUB_ENV"  # 覆盖环境变量
-          echo "TMPDIR=$NEW_TEMP"      >> "$GITHUB_ENV"
-          echo "TEMP=$NEW_TEMP"        >> "$GITHUB_ENV"
-          echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
-
-          # 4. 工具缓存（pip/conda/node 等）
-          sudo mkdir -p "$BUILD_VOL/.runner/toolcache"
-          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache"
-          sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache
-          echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/.runner/toolcache" >> "$GITHUB_ENV"
-
-          # 5. Docker 镜像/容器根目录（如后续步骤用得到）
-          #    把 docker 数据根目录也改到构建卷，需要重启 dockerd
-          sudo systemctl stop docker
-          sudo mkdir -p "$BUILD_VOL/.runner/docker"
-          echo '{"data-root":"'"$BUILD_VOL/.runner/docker"'"}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl start docker
-
-          # 6. 看一眼剩余空间，确认根分区不再涨
-          df -h /
 
       - name: Setup Python
         uses: actions/setup-python@v5
