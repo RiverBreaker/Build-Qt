@@ -51,6 +51,18 @@ jobs:
           BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
           sudo mkdir -p "$BUILD_VOL/.runner"
 
+          DIAG_NEW="$BUILD_VOL/.runner/_diag"
+          sudo mkdir -p "$DIAG_NEW"
+
+          # 如果已有日志，先搬走
+          [[ -d /home/runner/actions-runner/cached/_diag ]] && \
+            sudo rsync -aHAX /home/runner/actions-runner/cached/_diag/ "$DIAG_NEW/" || true
+          sudo rm -rf /home/runner/actions-runner/cached/_diag
+
+          # 立即绑定挂载
+          sudo mkdir -p /home/runner/actions-runner/cached
+          sudo mount --bind "$DIAG_NEW" /home/runner/actions-runner/cached/_diag
+
           # 3. 临时目录
           NEW_TEMP="$BUILD_VOL/.runner/tmp"
           sudo mkdir -p "$NEW_TEMP"
@@ -73,7 +85,7 @@ jobs:
           sudo systemctl start docker
 
           # 6. 确认根分区不再增长
-          df -h /
+          df -h
 
       - name: Checkout repository
         uses: actions/checkout@v4
