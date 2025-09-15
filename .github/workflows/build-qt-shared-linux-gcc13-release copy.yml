@@ -55,10 +55,13 @@ jobs:
           sudo mkdir -p "$BUILD_VOL/.runner"  # 统一放 runner 相关数据
 
           # 2. 日志目录
-          sudo mkdir -p "$BUILD_VOL/.runner/_diag"
-          sudo rm -rf   "$RUNNER_TEMP/../_diag"          # 删掉旧日志
-          sudo ln -sfn  "$BUILD_VOL/.runner/_diag" \
-                        "$RUNNER_TEMP/../_diag"          # 软链到新位置
+          DIAG_SRC="$BUILD_VOL/.runner/_diag"
+          DIAG_DST="/home/runner/actions-runner/cached/_diag"
+          sudo mkdir -p "$DIAG_SRC"
+          # 如果目标已存在，先搬内容（避免丢日志）
+          [[ -d "$DIAG_DST" ]] && sudo rsync -aHAX "$DIAG_DST/" "$DIAG_SRC/" || true
+          sudo mkdir -p "$(dirname "$DIAG_DST")"
+          sudo mount --bind "$DIAG_SRC" "$DIAG_DST"
 
           # 3. 临时目录（actions 自己用的 RUNNER_TEMP）
           NEW_TEMP="$BUILD_VOL/.runner/tmp"
