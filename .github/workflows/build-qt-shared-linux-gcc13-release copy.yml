@@ -48,10 +48,10 @@ jobs:
           set -euo pipefail
 
           BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
-          sudo mkdir -p "$BUILD_VOL/.runner"
+          sudo mkdir -p "$BUILD_VOL/Build-Qt/.runner"
 
           # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
-          NEW_TEMP="$BUILD_VOL/.runner/tmp"
+          NEW_TEMP="$BUILD_VOL/Build-Qt/.runner/tmp"
           sudo mkdir -p "$NEW_TEMP"
           sudo chmod 1777 "$NEW_TEMP"
           echo "RUNNER_TEMP=$NEW_TEMP" >> "$GITHUB_ENV"
@@ -133,7 +133,8 @@ jobs:
           # -x: extract; -J: .xz; -f: file; -C: target dir
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
-          df -h
+          echo "Disk usage after actions:"
+          df -h || true
 
       - name: Configure & build & install ${{ matrix.config }}
         env:
@@ -161,9 +162,15 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -- -Wno-dev
+          echo "Disk usage after actions:"
+          df -h || true
 
           cmake --build . --parallel 2
+          echo "Disk usage after actions:"
+          df -h || true
           cmake --install .
+          echo "Disk usage after actions:"
+          df -h || true
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
