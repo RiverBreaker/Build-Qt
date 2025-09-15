@@ -15,7 +15,7 @@ on:
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
-    runs-on: ubuntu-22.04   
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
