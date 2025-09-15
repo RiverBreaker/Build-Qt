@@ -1,0 +1,36 @@
+name: check msys2 env
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  check-msys-env:
+    name: check-msys-env
+    runs-on: windows-2022
+
+    steps:
+      - name: CheckOut
+        uses: actions/checkout@v4
+
+      - name: Set Msys2 Env
+        uses: msys2/setup-msys2@v2
+        with: 
+          msystem: MSYS
+          update: true
+
+      - name: PWD
+        shell: msys2 {0}
+        run: |
+          pwd
+      - name: ls
+        shell: msys2 {0}
+        run: |
+          ls
+      - name: find gcc
+        shell: cmd
+        run: |
+          where /r C:\ProgramData\Chocolatey gcc.exe || (call )
+          where /r C:\Strawberry gcc.exe             || (call )
+          where /r C:\mingw64 gcc.exe                || (call )
+          where /r C:\msys64\mingw64\bin gcc.exe     || (call )
+  
