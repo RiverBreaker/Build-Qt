@@ -1,0 +1,186 @@
+name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号(>=6.7.0)'
+        required: true
+        default: '6.9'
+      qt_patch:
+        description: 'Qt 补丁版本号(例如 0)'
+        required: false
+        default: '0'
+
+jobs:
+  build-qt:
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
+    runs-on: ubuntu-22.04   
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
+
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-Unix
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: 安装构建工具（Linux）
+        id: install_build_tools
+        run: |
+          sudo apt-get update
+          # 安装指定版本的 GCC/G++ 13 以及其他构建工具
+          sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
+           libssl-dev gperf xz-utils \
+           libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
+           libx11-dev libxext-dev libxcb1-dev \
+           protobuf-compiler libprotobuf-dev \
+           llvm-16-dev libclang-16-dev clang-16 lld-16 libclang-16-dev 
+          echo "🔍 工具位置："
+          for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
+          # 设置默认 gcc / g++ 指向版本 13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 600
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 600
+          # 验证
+          gcc --version
+          g++ --version
+          echo "🔍 LLVM工具验证："
+          ls -l /usr/lib/llvm-16/lib/libclangBasic.a  # 确认文件存在
+          clang-16 --version
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        run: |
+          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          echo "📦 Downloading Qt source archive..."
+          curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
+          echo "📂 Extracting .tar.xz via tar..."
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
+          # -x: extract; -J: .xz; -f: file; -C: target dir
+          tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
+          echo "✅ Extraction complete: $TARGET_DIR"
+
+      - name: Configure & build & install ${{ matrix.config }}
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
+          mkdir -p "$INSTALL_DIR" "$ARTIFACTS_DIR"
+
+          if [[ "$CONFIG" == "Debug" ]]; then
+            MODE="-debug"
+          elif [[ "$CONFIG" == "Release" ]]; then
+            MODE="-release"
+          else
+            MODE="-release -force-debug-info"
+          fi
+
+          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
+            -prefix "$INSTALL_DIR" -no-pch \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
+
+          cmake --build . --parallel 2
+          cmake --install .
+
+      - name: Package ${{ matrix.config }} as tar.gz
+        run: |
+          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
+          echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
+          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
+          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
+      
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          REPO:      ${{ github.repository }}
+          TAG:       v${{ env.QT_VERSION }}-shared
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Local tag $TAG already exists, skip."
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Remote tag $TAG already exists, skip."
+          else
+            git tag "$TAG"
+            git push "https://x-access-token:$PAT_TOKEN@github.com/$REPO" "$TAG"
+            echo "Tag $TAG created and pushed."
+          fi
+
+      - name: Ensure Release exists or create
+        id: ensure_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "Qt $TAG Auto Builds" \
+              --notes "Automated build of Qt $TAG" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ env.QT_VERSION }}-shared"
+          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
+          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          if [ -f "$FILE" ]; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            echo "文件未找到，跳过上传：$FILE"
+          fi
