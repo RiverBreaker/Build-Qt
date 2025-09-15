@@ -71,6 +71,7 @@ jobs:
 
           # 4. 工具缓存（pip/conda/node 等）
           sudo mkdir -p "$BUILD_VOL/.runner/toolcache"
+          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache"
           sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache
           echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/.runner/toolcache" >> "$GITHUB_ENV"
 
