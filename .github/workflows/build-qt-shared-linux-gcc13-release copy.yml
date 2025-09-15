@@ -41,6 +41,39 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
+      
+      - name: Redirect Runner logs / temp / cache to build volume
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # 1. 确定构建卷目录
+          BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
+          sudo mkdir -p "$BUILD_VOL/.runner"
+
+          # 3. 临时目录
+          NEW_TEMP="$BUILD_VOL/.runner/tmp"
+          sudo mkdir -p "$NEW_TEMP"
+          sudo chmod 1777 "$NEW_TEMP"
+          echo "RUNNER_TEMP=$NEW_TEMP" >> "$GITHUB_ENV"
+          echo "TMPDIR=$NEW_TEMP"      >> "$GITHUB_ENV"
+          echo "TEMP=$NEW_TEMP"        >> "$GITHUB_ENV"
+          echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
+
+          # 4. 工具缓存
+          sudo mkdir -p "$BUILD_VOL/.runner/toolcache"
+          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache"
+          sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache
+          echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/.runner/toolcache" >> "$GITHUB_ENV"
+
+          # 5. Docker 数据根目录
+          sudo systemctl stop docker
+          sudo mkdir -p "$BUILD_VOL/.runner/docker"
+          echo '{"data-root":"'"$BUILD_VOL/.runner/docker"'"}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl start docker
+
+          # 6. 确认根分区不再增长
+          df -h /
 
       - name: Checkout repository
         uses: actions/checkout@v4
