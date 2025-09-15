@@ -34,7 +34,7 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 6144
+          root-reserve-mb: 7168
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
@@ -80,10 +80,6 @@ jobs:
           # 7) 最后检查磁盘使用与残留被删除占用
           echo "Disk usage after actions:"
           df -h || true
-          echo "List deleted-but-open files (if any):"
-          sudo lsof +L1 || true
-
-          echo "Done. Note: if lsof still shows deleted-but-open entries, consider a short maintenance window to restart the runner service to fully free space."
 
       - name: Checkout repository
         uses: actions/checkout@v4
