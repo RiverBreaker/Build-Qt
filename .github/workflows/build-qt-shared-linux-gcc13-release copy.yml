@@ -47,23 +47,53 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. 确定构建卷目录
           BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
           sudo mkdir -p "$BUILD_VOL/.runner"
 
           DIAG_NEW="$BUILD_VOL/.runner/_diag"
           sudo mkdir -p "$DIAG_NEW"
 
-          # 如果已有日志，先搬走
-          [[ -d /home/runner/actions-runner/cached/_diag ]] && \
-            sudo rsync -aHAX /home/runner/actions-runner/cached/_diag/ "$DIAG_NEW/" || true
-          sudo rm -rf /home/runner/actions-runner/cached/_diag
+          # 1) 如果已有日志，先复制到构建卷（保留历史）
+          if [[ -d /home/runner/actions-runner/cached/_diag ]]; then
+            echo "Copying existing diag logs to $DIAG_NEW ..."
+            sudo rsync -aHAX --delete /home/runner/actions-runner/cached/_diag/ "$DIAG_NEW/" || true
+            sudo chown -R runner:runner "$DIAG_NEW" || true
 
-          # 立即绑定挂载
-          sudo mkdir -p /home/runner/actions-runner/cached/_diag
-          sudo mount --bind "$DIAG_NEW" /home/runner/actions-runner/cached/_diag
+            # 2) 在原路径截断日志文件以释放空间（不会删除文件路径）
+            echo "Truncating original log files in-place to free space ..."
+            sudo find /home/runner/actions-runner/cached/_diag -type f -print0 \
+              | while IFS= read -r -d '' file; do
+                  # 仅截断常见日志文件，避免对非日志（例如 socket/特殊文件）误操作
+                  # 如果你只想截断 *.log, 可替换 find 条件为 -name '*.log'
+                  echo "Truncating: $file"
+                  sudo truncate -s 0 "$file" || true
+                done
+          else
+            echo "No existing /home/runner/actions-runner/cached/_diag found — creating target dir only."
+          fi
 
-          # 3. 临时目录
+          # 3) 尝试清理 'deleted but open' 的句柄（如果存在）
+          #    先列出有问题的 PID（如果没有输出则跳过）
+          DELETED_PIDS=$(sudo lsof +L1 -t || true)
+          if [[ -n "${DELETED_PIDS// /}" ]]; then
+            echo "Found processes holding deleted files: $DELETED_PIDS"
+            echo "Attempting to truncate their open fds via /proc/.../fd/..."
+            for pid in $DELETED_PIDS; do
+              # iterate file descriptors
+              for fdpath in /proc/"$pid"/fd/*; do
+                [ -e "$fdpath" ] || continue
+                target=$(readlink "$fdpath" 2>/dev/null || true)
+                if [[ "$target" == *"(deleted)"* ]]; then
+                  echo "Truncating $fdpath (pid $pid) -> target: $target"
+                  sudo truncate -s 0 "$fdpath" || true
+                fi
+              done
+            done
+          else
+            echo "No deleted-but-open files found."
+          fi
+
+          # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
           NEW_TEMP="$BUILD_VOL/.runner/tmp"
           sudo mkdir -p "$NEW_TEMP"
           sudo chmod 1777 "$NEW_TEMP"
@@ -72,20 +102,31 @@ jobs:
           echo "TEMP=$NEW_TEMP"        >> "$GITHUB_ENV"
           echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
 
-          # 4. 工具缓存
+          # 5) 工具缓存
           sudo mkdir -p "$BUILD_VOL/.runner/toolcache"
-          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache"
-          sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache
+          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache" || true
+          sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache || true
           echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/.runner/toolcache" >> "$GITHUB_ENV"
 
-          # 5. Docker 数据根目录
-          sudo systemctl stop docker
-          sudo mkdir -p "$BUILD_VOL/.runner/docker"
-          echo '{"data-root":"'"$BUILD_VOL/.runner/docker"'"}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl start docker
+          # 6) Docker 数据根目录（如可用）
+          #    停 docker 仅在可行时执行（某些 hosted 环境可能不允许）
+          if command -v systemctl >/dev/null 2>&1; then
+            echo "Reconfiguring docker data-root..."
+            sudo systemctl stop docker || true
+            sudo mkdir -p "$BUILD_VOL/.runner/docker"
+            echo '{"data-root":"'"$BUILD_VOL/.runner/docker"'"}' | sudo tee /etc/docker/daemon.json > /dev/null
+            sudo systemctl start docker || true
+          else
+            echo "systemctl not available; skipping docker data-root reconfigure."
+          fi
 
-          # 6. 确认根分区不再增长
-          df -h
+          # 7) 最后检查磁盘使用与残留被删除占用
+          echo "Disk usage after actions:"
+          df -h || true
+          echo "List deleted-but-open files (if any):"
+          sudo lsof +L1 || true
+
+          echo "Done. Note: if lsof still shows deleted-but-open entries, consider a short maintenance window to restart the runner service to fully free space."
 
       - name: Checkout repository
         uses: actions/checkout@v4
