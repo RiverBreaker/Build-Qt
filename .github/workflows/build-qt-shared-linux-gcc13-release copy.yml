@@ -92,6 +92,44 @@ jobs:
           else
             echo "No deleted-but-open files found."
           fi
+          echo "Detecting processes that hold deleted files..."
+          # 获取持有 deleted-but-open 文件的 PID 列表（唯一）
+          PIDS=$(sudo lsof +L1 -t || true)
+          if [[ -z "$PIDS" ]]; then
+            echo "No processes holding deleted files found."
+            exit 0
+          fi
+
+          echo "PIDs found: $PIDS"
+          for pid in $PIDS; do
+            if ! sudo kill -0 "$pid" 2>/dev/null; then
+              echo "PID $pid is not running any more - skipping"
+              continue
+            fi
+
+            echo "=== PID $pid info ==="
+            sudo ps -p "$pid" -o pid,ppid,user,cmd --no-headers || true
+            echo "Open fds (showing deleted ones):"
+            sudo ls -l /proc/"$pid"/fd || true
+
+            # 针对每个 fd，如果指向 "(deleted)"，尝试 truncate（忽略错误）
+            for fdpath in /proc/"$pid"/fd/*; do
+              [ -e "$fdpath" ] || continue
+              target=$(readlink "$fdpath" 2>/dev/null || true)
+              if [[ "$target" == *"(deleted)"* ]]; then
+                echo "Truncating fd $fdpath -> $target"
+                # 尝试 truncate，若失败再尝试 shell 重定向（两种方式取其一）
+                sudo truncate -s 0 "$fdpath" 2>/dev/null || sudo bash -c '> "$fdpath"' 2>/dev/null || echo "truncate failed (ignored)"
+              fi
+            done
+
+            echo "Done with PID $pid"
+            echo
+          done
+
+          echo "Check disk usage and remaining deleted-but-open files:"
+          df -h || true
+          sudo lsof +L1 || true
 
           # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
           NEW_TEMP="$BUILD_VOL/.runner/tmp"
