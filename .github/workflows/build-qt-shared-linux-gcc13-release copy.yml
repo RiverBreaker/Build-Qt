@@ -34,8 +34,8 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 10240
-          swap-size-mb: 1024
+          root-reserve-mb: 5120
+          swap-size-mb: 2048
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -127,6 +127,7 @@ jobs:
           # -x: extract; -J: .xz; -f: file; -C: target dir
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
+          df -h
 
       - name: Configure & build & install ${{ matrix.config }}
         env:
