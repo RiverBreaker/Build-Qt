@@ -89,7 +89,7 @@ jobs:
            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
            libx11-dev libxext-dev libxcb1-dev \
            protobuf-compiler libprotobuf-dev \
-           llvm-dev libclang-dev clang lld libclang-dev 
+           llvm-17-dev libclang-17-dev clang-17 lld-17 libclang-17-dev 
           echo "🔍 工具位置："
           for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
           # 设置默认 gcc / g++ 指向版本 13
