@@ -89,7 +89,7 @@ jobs:
            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
            libx11-dev libxext-dev libxcb1-dev \
            protobuf-compiler libprotobuf-dev \
-           llvm-16-dev libclang-16-dev clang-16 lld-16 libclang-16-dev 
+           llvm-dev libclang-dev clang lld libclang-dev 
           echo "🔍 工具位置："
           for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
           # 设置默认 gcc / g++ 指向版本 13
@@ -99,8 +99,8 @@ jobs:
           gcc --version
           g++ --version
           echo "🔍 LLVM工具验证："
-          ls -l /usr/lib/llvm-16/lib/libclangBasic.a  # 确认文件存在
-          clang-16 --version
+          ls -l /usr/lib/llvm*/lib/libclangBasic.a  # 确认文件存在
+          clang --version
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
