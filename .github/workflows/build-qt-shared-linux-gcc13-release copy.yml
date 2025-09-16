@@ -124,8 +124,9 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
-          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          ARCHIVE="$NEW_RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$NEW_RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -141,10 +142,11 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
-          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
-          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
-          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          SRC_QT="$NEW_RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$NEW_RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$NEW_RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -176,14 +178,14 @@ jobs:
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
           set -euo pipefail
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
 
-          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
-          
           BASE="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}"
           SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
           LIMIT=$((1950 * 1024 * 1024))
 
-          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+          SRC_DIR="$NEW_RUNNER_TEMP/qt-${QT_VERSION}"
 
           echo "📦 Trying to create single archive: $SINGLE"
           tar -C "$SRC_DIR" -czf "$SINGLE" "${{ matrix.config }}"
@@ -249,9 +251,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          FILE="$NEW_RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
           else
