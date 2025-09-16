@@ -49,6 +49,7 @@ jobs:
 
           BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
           sudo mkdir -p "$BUILD_VOL/Build-Qt/.runner"
+          sudo chown -R runner:runner "$BUILD_VOL/Build-Qt/.runner"
 
           # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
           NEW_TEMP="$BUILD_VOL/Build-Qt/.runner/tmp"
