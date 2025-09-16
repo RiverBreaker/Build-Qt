@@ -34,7 +34,7 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 12288
+          root-reserve-mb: 2048
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
@@ -124,9 +124,8 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
-          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
-          ARCHIVE="$NEW_RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$NEW_RUNNER_TEMP/qt6_src"
+          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -142,12 +141,10 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
-
-          SRC_QT="$NEW_RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
-          BUILD_DIR="$NEW_RUNNER_TEMP/build-${CONFIG}"
-          INSTALL_DIR="$NEW_RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
-          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -178,11 +175,36 @@ jobs:
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
-          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
-          cd "$NEW_RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$NEW_RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
+          set -euo pipefail
+
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          
+          BASE="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "${{ matrix.config }}"
+
+          SIZE=$(stat -c%s "$SINGLE")
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "${{ matrix.config }}" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -227,10 +249,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$NEW_RUNNER_TEMP/artifacts/$ASSET"
+          FILE="$RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
           else
