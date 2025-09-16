@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [RelWithDebInfo]
+        config: [Debug, Release, RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -50,12 +50,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          BUILD_VOL=$(dirname "$GITHUB_WORKSPACE")
-          sudo mkdir -p "$BUILD_VOL/Build-Qt/.runner"
-          sudo chown -R runner:runner "$BUILD_VOL/Build-Qt/.runner"
+          sudo mkdir -p "$GITHUB_WORKSPACE/.runner"
+          sudo chown -R runner:runner "$GITHUB_WORKSPACE/.runner"
 
-          # 4) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
-          NEW_TEMP="$BUILD_VOL/Build-Qt/.runner/tmp"
+          # 1) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
+          NEW_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
           sudo mkdir -p "$NEW_TEMP"
           sudo chmod 1777 "$NEW_TEMP"
           echo "RUNNER_TEMP=$NEW_TEMP" >> "$GITHUB_ENV"
@@ -63,25 +62,7 @@ jobs:
           echo "TEMP=$NEW_TEMP"        >> "$GITHUB_ENV"
           echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
 
-          # 5) 工具缓存
-          sudo mkdir -p "$BUILD_VOL/Build-Qt/.runner/toolcache"
-          sudo chown -R runner:runner "$BUILD_VOL/Build-Qt/.runner/toolcache" || true
-          sudo ln -sfn "$BUILD_VOL/Build-Qt/.runner/toolcache" /opt/hostedtoolcache || true
-          echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/Build-Qt/.runner/toolcache" >> "$GITHUB_ENV"
-
-          # 6) Docker 数据根目录（如可用）
-          #    停 docker 仅在可行时执行（某些 hosted 环境可能不允许）
-          if command -v systemctl >/dev/null 2>&1; then
-            echo "Reconfiguring docker data-root..."
-            sudo systemctl stop docker || true
-            sudo mkdir -p "$BUILD_VOL/.runner/docker"
-            echo '{"data-root":"'"$BUILD_VOL/.runner/docker"'"}' | sudo tee /etc/docker/daemon.json > /dev/null
-            sudo systemctl start docker || true
-          else
-            echo "systemctl not available; skipping docker data-root reconfigure."
-          fi
-
-          # 7) 最后检查磁盘使用与残留被删除占用
+          # 2) 最后检查磁盘使用与残留被删除占用
           echo "Disk usage after actions:"
           df -h || true
 
@@ -252,11 +233,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          BASE="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}"
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$NEW_RUNNER_TEMP/artifacts/$ASSET"
-          if [ -f "$FILE" ]; then
-            gh release upload "$TAG" "$FILE" --clobber
-          else
-            echo "文件未找到，跳过上传：$FILE"
+          ART_DIR="$NEW_RUNNER_TEMP/artifacts"
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
+
+          if ! $found; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
           fi
+
+          echo "✅ All artifacts uploaded."
