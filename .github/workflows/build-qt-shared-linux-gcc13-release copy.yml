@@ -45,7 +45,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-            - name: Redirect Runner logs / temp / cache to build volume
+      - name: Redirect Runner logs / temp / cache to build volume
         shell: bash
         run: |
           set -euo pipefail
