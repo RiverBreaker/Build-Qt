@@ -41,8 +41,11 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Redirect Runner logs / temp / cache to build volume
+            - name: Redirect Runner logs / temp / cache to build volume
         shell: bash
         run: |
           set -euo pipefail
@@ -81,9 +84,6 @@ jobs:
           # 7) 最后检查磁盘使用与残留被删除占用
           echo "Disk usage after actions:"
           df -h || true
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
