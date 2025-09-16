@@ -61,10 +61,10 @@ jobs:
           echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
 
           # 5) 工具缓存
-          sudo mkdir -p "$BUILD_VOL/.runner/toolcache"
-          sudo chown -R runner:runner "$BUILD_VOL/.runner/toolcache" || true
-          sudo ln -sfn "$BUILD_VOL/.runner/toolcache" /opt/hostedtoolcache || true
-          echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/.runner/toolcache" >> "$GITHUB_ENV"
+          sudo mkdir -p "$BUILD_VOL/Build-Qt/.runner/toolcache"
+          sudo chown -R runner:runner "$BUILD_VOL/Build-Qt/.runner/toolcache" || true
+          sudo ln -sfn "$BUILD_VOL/Build-Qt/.runner/toolcache" /opt/hostedtoolcache || true
+          echo "AGENT_TOOLSDIRECTORY=$BUILD_VOL/Build-Qt/.runner/toolcache" >> "$GITHUB_ENV"
 
           # 6) Docker 数据根目录（如可用）
           #    停 docker 仅在可行时执行（某些 hosted 环境可能不允许）
@@ -124,8 +124,9 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
-          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          ARCHIVE="$NEW_RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$NEW_RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -141,10 +142,12 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
-          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
-          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
-          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+
+          SRC_QT="$NEW_RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$NEW_RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$NEW_RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -175,11 +178,12 @@ jobs:
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
           ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
           echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
-          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
-      
+          cd "$NEW_RUNNER_TEMP/qt-${QT_VERSION}"
+          tar -czf "$NEW_RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
+
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
@@ -223,9 +227,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
           TAG="v${{ env.QT_VERSION }}-shared"
           ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
+          FILE="$NEW_RUNNER_TEMP/artifacts/$ASSET"
           if [ -f "$FILE" ]; then
             gh release upload "$TAG" "$FILE" --clobber
           else
