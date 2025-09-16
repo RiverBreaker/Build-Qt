@@ -1,4 +1,4 @@
-name: Build Qt 6.x.x -Release -shared for Linux (GCC13)
+name: Build Qt 6.x.x -shared for Linux (GCC13)
 
 on:
   workflow_dispatch:
@@ -15,13 +15,13 @@ on:
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
     strategy:
       matrix:
-        config: [Release]
+        config: [Debug, Release, RelWithDebInfo]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -31,8 +31,40 @@ jobs:
       QT_SOURCE_URL: https://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
 
     steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 4096
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Redirect Runner logs / temp / cache to build volume
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo mkdir -p "$GITHUB_WORKSPACE/.runner"
+          sudo chown -R runner:runner "$GITHUB_WORKSPACE/.runner"
+
+          # 1) 临时目录 (RUNNER_TEMP/TMPDIR/TEMP/TMP)
+          NEW_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          sudo mkdir -p "$NEW_TEMP"
+          sudo chmod 1777 "$NEW_TEMP"
+          echo "RUNNER_TEMP=$NEW_TEMP" >> "$GITHUB_ENV"
+          echo "TMPDIR=$NEW_TEMP"      >> "$GITHUB_ENV"
+          echo "TEMP=$NEW_TEMP"        >> "$GITHUB_ENV"
+          echo "TMP=$NEW_TEMP"         >> "$GITHUB_ENV"
+
+          # 2) 最后检查磁盘使用与残留被删除占用
+          echo "Disk usage after actions:"
+          df -h || true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -45,7 +77,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-Unix
-          path: ${{ runner.temp }}/qt6_src
+          path: ${{ github.workspace }}/.runner/tmp/qt6_src
 
       - name: 安装构建工具（Linux）
         id: install_build_tools
@@ -73,8 +105,9 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         run: |
-          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          ARCHIVE="$NEW_RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$NEW_RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -83,15 +116,18 @@ jobs:
           # -x: extract; -J: .xz; -f: file; -C: target dir
           tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
           echo "✅ Extraction complete: $TARGET_DIR"
+          echo "Disk usage after actions:"
+          df -h || true
 
       - name: Configure & build & install ${{ matrix.config }}
         env:
           CONFIG: ${{ matrix.config }}
         run: |
-          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
-          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
-          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
-          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          SRC_QT="$NEW_RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$NEW_RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$NEW_RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -105,23 +141,54 @@ jobs:
             MODE="-release -force-debug-info"
           fi
 
-          "$SRC_QT/configure" -shared $MODE -optimize-size -ltcg -reduce-exports \
+          "$SRC_QT/configure" -shared $MODE -reduce-exports \
             -prefix "$INSTALL_DIR" -no-pch \
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
-            -no-sql-psql --  -DCMAKE_CXX_FLAGS="-Os -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" -Wno-dev
+            -no-sql-psql -- -Wno-dev
+          echo "Disk usage after actions:"
+          df -h || true
 
           cmake --build . --parallel 2
+          echo "Disk usage after actions:"
+          df -h || true
           cmake --install .
+          echo "Disk usage after actions:"
+          df -h || true
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          echo "📦 正在打包 ${{ matrix.config }} -> $ASSET..."
-          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
-          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "${{ matrix.config }}"
-      
+          set -euo pipefail
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          ARTIFACTS_DIR="$NEW_RUNNER_TEMP/artifacts"
+
+          BASE="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}"
+          SINGLE="$ARTIFACTS_DIR/$BASE.tar.gz"
+          LIMIT=$((1950 * 1024 * 1024))
+
+          SRC_DIR="$NEW_RUNNER_TEMP/qt-${QT_VERSION}"
+
+          echo "📦 Trying to create single archive: $SINGLE"
+          tar -C "$SRC_DIR" -czf "$SINGLE" "${{ matrix.config }}"
+
+          SIZE=$(stat -c%s "$SINGLE")
+
+          echo "📏 Archive size: $((SIZE/1024/1024)) MiB (limit is $((LIMIT/1024/1024)) MiB)"
+
+          if (( SIZE > LIMIT )); then
+            echo "⚠️  Size exceeds limit, regenerating as split volumes…"
+            rm -f "$SINGLE"
+
+            # 使用管道压缩并分卷，每卷 1950m
+            tar -C "$SRC_DIR" -czf - "${{ matrix.config }}" \
+              | split -b1950m - "$ARTIFACTS_DIR/$BASE.tar.gz.part-"
+
+            echo "✅ Created split volumes in $ARTIFACTS_DIR:"
+            ls -1 "$ARTIFACTS_DIR/$BASE.tar.gz.part-"*
+          else
+            echo "✅ Created single archive: $SINGLE"
+          fi
+
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
@@ -165,11 +232,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          export NEW_RUNNER_TEMP="$GITHUB_WORKSPACE/.runner/tmp"
+          BASE="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}"
           TAG="v${{ env.QT_VERSION }}-shared"
-          ASSET="qt-${QT_VERSION}-shared-linux-gcc13_x64-${{ matrix.config }}.tar.gz"
-          FILE="$RUNNER_TEMP/artifacts/$ASSET"
-          if [ -f "$FILE" ]; then
-            gh release upload "$TAG" "$FILE" --clobber
-          else
-            echo "文件未找到，跳过上传：$FILE"
+          ART_DIR="$NEW_RUNNER_TEMP/artifacts"
+          echo "🔍 Looking for artifacts in $ART_DIR matching $BASE*"
+          found=false
+          # 注意：如果没有匹配项，bash 会把 glob 本身当做字面字符串；
+          # 所以这里先测试一下文件是否真的存在。
+          for file in "$ART_DIR"/"$BASE"*.tar.gz*; do
+            if [ -e "$file" ]; then
+              echo "📤 Uploading $(basename "$file") to release $TAG"
+              gh release upload "$TAG" "$file" --clobber
+              found=true
+            fi
+          done
+
+          if ! $found; then
+            echo "❌ No artifacts found to upload for $BASE"
+            exit 1
           fi
+
+          echo "✅ All artifacts uploaded."
