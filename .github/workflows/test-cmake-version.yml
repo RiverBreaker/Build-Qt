@@ -126,6 +126,9 @@ jobs:
         if: env.QT_VERSION <= '6.0.1'
         shell: pwsh
         run: |
+          $patch = "$env:GITHUB_WORKSPACE/patchs/qt6.0.0-designer-uic-fix.patch"
+          # 去掉 CR（转为 LF）并删除尾随空格，然后保存（保留最后换行）
+          (Get-Content -Raw $patch) -replace "`r", "" -replace "[ \t]+$","" | Set-Content -NoNewline $patch
           cd "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-$env:QT_VERSION"
           git apply --ignore-whitespace $env:GITHUB_WORKSPACE/patchs/qt6.0.0-designer-uic-fix.patch
 
