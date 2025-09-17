@@ -21,7 +21,7 @@ index 20335e0dd..13689d246 100644
 +if (MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
 +    # base of the .ui files (relative to this CMakeLists)
 +    set(UIC_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shared")
- 
+
 +    # find all .ui files under shared/templates/forms
 +    file(GLOB_RECURSE UI_FILES "${UIC_BASE_DIR}/templates/forms/*.ui")
 +    set(PREGENERATED_UIC_FILES "")
@@ -57,5 +57,5 @@ index 20335e0dd..13689d246 100644
  # Resources:
  set_source_files_properties("../../../shared/deviceskin/skins/ClamshellPhone.skin"
      PROPERTIES QT_RESOURCE_ALIAS "ClamshellPhone.skin"
--- 
+--
 2.50.1.windows.1
