@@ -1,0 +1,15 @@
+--- a/qttools/src/designer/src/lib/CMakeLists.txt
++++ b/qttools/src/designer/src/lib/CMakeLists.txt
+@@ -1,3 +1,12 @@
++# Qt 6.0.0 Ninja+MSVC  workaround: 提前生成所有 ui_*.h
++file(GLOB_RECURSE UI_FILES shared/templates/forms/*.ui)
++foreach(ui ${UI_FILES})
++    get_filename_component(fn ${ui} NAME_WE)
++    get_filename_component(dir ${ui} DIRECTORY)
++    set(out "${CMAKE_CURRENT_BINARY_DIR}/Designer_autogen/include_${CMAKE_BUILD_TYPE}/shared/templates/forms/${dir}/${fn}.h")
++    execute_process(COMMAND ${Qt6_DIR}/../../../bin/uic ${ui} -o ${out})
++endforeach()
++
+ qt_internal_add_library(Designer
+     SHARED
+     OUTPUT_NAME Qt6Designer
