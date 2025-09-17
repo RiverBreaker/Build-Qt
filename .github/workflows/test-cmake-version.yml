@@ -127,7 +127,7 @@ jobs:
         shell: pwsh
         run: |
           cd "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-$env:QT_VERSION/qttools"
-          git am $env:GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch
+          patch -p1 < $env:GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
