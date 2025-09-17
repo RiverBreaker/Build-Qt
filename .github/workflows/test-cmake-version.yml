@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        config: [Debug, Release, RelWithDebInfo]
+        config: [Debug, Release]
     env:
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
@@ -121,77 +121,6 @@ jobs:
         run: |
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
-
-      - name: Apply Qt 6.0.0 Designer ui_*.h patch
-        if: env.QT_VERSION <= '6.0.1'
-        shell: pwsh
-        run: |
-          cd "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-$env:QT_VERSION"
-          $File = "qttools/src/designer/src/lib/CMakeLists.txt"
-          # 需要插入的内容，注意这里使用单引号避免变量展开
-          $InsertText = @'
-          # Workaround for Ninja+MSVC: pre-generate ui_*.h so Designer_autogen has the files.
-          # This avoids "missing and no known rule to make it" errors when automoc/autouic
-          # doesn't create the auto-generated headers early enough for Ninja+MSVC.
-          if (MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
-              # base of the .ui files (relative to this CMakeLists)
-              set(UIC_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shared")
-
-              # find all .ui files under shared/templates/forms
-              file(GLOB_RECURSE UI_FILES "${UIC_BASE_DIR}/templates/forms/*.ui")
-              set(PREGENERATED_UIC_FILES "")
-
-              foreach(ui ${UI_FILES})
-                  # relative path relative to shared (e.g. templates/forms/240x320/Dialog.ui)
-                  file(RELATIVE_PATH rel_to_shared "${UIC_BASE_DIR}" "${ui}")
-                  get_filename_component(fn ${rel_to_shared} NAME_WE)
-                  get_filename_component(rel_dir ${rel_to_shared} DIRECTORY)
-
-                  set(out "${CMAKE_CURRENT_BINARY_DIR}/Designer_autogen/include_${CMAKE_BUILD_TYPE}/shared/${rel_dir}/${fn}.h")
-
-                  # ensure output directory exists
-                  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Designer_autogen/include_${CMAKE_BUILD_TYPE}/shared/${rel_dir}")
-
-                  add_custom_command(
-                      OUTPUT ${out}
-                      COMMAND "$<TARGET_FILE:uic>" "${ui}" -o "${out}"
-                      DEPENDS "${ui}"
-                      COMMENT "Pre-generating ${out} from ${ui}"
-                      VERBATIM
-                  )
-
-                  list(APPEND PREGENERATED_UIC_FILES ${out})
-              endforeach()
-
-              if (PREGENERATED_UIC_FILES)
-                  add_custom_target(Designer_pregenerate_uic DEPENDS ${PREGENERATED_UIC_FILES})
-                  # ensure Designer builds after pregeneration
-                  add_dependencies(Designer Designer_pregenerate_uic)
-              endif()
-          endif()
-          '@
-          # 读取原文件
-          $Content = Get-Content $File
-
-          # 新数组存放最终内容
-          $NewContent = @()
-          $Inserted = $false
-
-          for ($i=0; $i -lt $Content.Length; $i++) {
-              $line = $Content[$i]
-              $NewContent += $line
-
-              # 找到 PRECOMPILED_HEADER 块的闭括号 )
-              if (-not $Inserted -and $line -match '^\s*\)') {
-                  $NewContent += $InsertText
-                  $Inserted = $true
-              }
-          }
-
-          # 写回文件
-          Set-Content -Path $File -Value $NewContent -Encoding UTF8
-
-          Write-Host "插入完成。"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
