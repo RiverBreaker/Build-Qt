@@ -57,3 +57,6 @@ index 20335e0dd..13689d246 100644
  # Resources:
  set_source_files_properties("../../../shared/deviceskin/skins/ClamshellPhone.skin"
      PROPERTIES QT_RESOURCE_ALIAS "ClamshellPhone.skin"
+--
+
+2.50.1.windows.1
