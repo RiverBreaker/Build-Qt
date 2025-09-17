@@ -177,9 +177,12 @@ jobs:
           $NewContent = @()
           $Inserted = $false
 
-          foreach ($line in $Content) {
+          for ($i=0; $i -lt $Content.Length; $i++) {
+              $line = $Content[$i]
               $NewContent += $line
-              if (-not $Inserted -and $line -match 'PRECOMPILED_HEADER') {
+
+              # 找到 PRECOMPILED_HEADER 块的闭括号 )
+              if (-not $Inserted -and $line -match '^\s*\)') {
                   $NewContent += $InsertText
                   $Inserted = $true
               }
@@ -228,11 +231,6 @@ jobs:
             -schannel ^
             -platform win32-msvc ^
             -- -Wno-dev
-
-          # rem 只关心 6.0.x
-          # if %MAJ%==6 if %MIN%==0 if %PAT% LSS 2 (
-          #   cmake --build . --target Designer_autogen -j1
-          # )
 
           rem 6. 构建 & 安装
           cmake --build . --parallel
