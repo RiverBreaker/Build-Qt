@@ -1,7 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Runner <runner@example.com>
+Date: Wed, 17 Sep 2025 00:00:00 +0000
+Subject: [PATCH] Workaround for Ninja+MSVC: pre-generate ui_*.h
+
+---
+ qttools/src/designer/src/lib/CMakeLists.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/qttools/src/designer/src/lib/CMakeLists.txt b/qttools/src/designer/src/lib/CMakeLists.txt
+index 1234567..abcdefg 100644
 --- a/qttools/src/designer/src/lib/CMakeLists.txt
 +++ b/qttools/src/designer/src/lib/CMakeLists.txt
 @@ -1,3 +1,12 @@
-+# Qt 6.0.0 Ninja+MSVC  workaround: 提前生成所有 ui_*.h
++# Qt 6.0.0 Ninja+MSVC workaround: pre-generate all ui_*.h
 +file(GLOB_RECURSE UI_FILES shared/templates/forms/*.ui)
 +foreach(ui ${UI_FILES})
 +    get_filename_component(fn ${ui} NAME_WE)
@@ -13,3 +24,5 @@
  qt_internal_add_library(Designer
      SHARED
      OUTPUT_NAME Qt6Designer
+-- 
+2.43.0
