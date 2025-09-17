@@ -160,6 +160,12 @@ jobs:
             -schannel ^
             -platform win32-msvc ^
             -- -Wno-dev
+          
+          for /f "tokens=1,2,3 delims=." %%a in ("%QT_VERSION%") do set /a MAJ=%%a, MIN=%%b, PAT=%%c
+          rem 只关心 6.0.x
+          if %MAJ%==6 if %MIN%==0 if %PAT% LSS 2 (
+            cmake --build . --target Designer_autogen --config Debug
+          )
 
           rem 6. 构建 & 安装
           cmake --build . --parallel
