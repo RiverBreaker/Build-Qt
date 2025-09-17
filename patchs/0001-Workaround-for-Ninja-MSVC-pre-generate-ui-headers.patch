@@ -26,20 +26,12 @@ index 20335e0dd..13689d246 100644
 +    file(GLOB_RECURSE UI_FILES "${UIC_BASE_DIR}/templates/forms/*.ui")
 +    set(PREGENERATED_UIC_FILES "")
 +
-+    # try to locate uic; first prefer Qt6_DIR relative path, then PATH
-+    find_program(UIC_EXECUTABLE uic HINTS "${Qt6_DIR}/../../../bin" "${Qt6_DIR}/bin" PATHS ENV PATH)
-+    if (NOT UIC_EXECUTABLE)
-+        message(FATAL_ERROR "uic executable not found for pre-generating ui headers. Ensure Qt tools are available in PATH or adjust Qt6_DIR.")
-+    endif()
-+
 +    foreach(ui ${UI_FILES})
 +        # relative path relative to shared (e.g. templates/forms/240x320/Dialog.ui)
 +        file(RELATIVE_PATH rel_to_shared "${UIC_BASE_DIR}" "${ui}")
 +        get_filename_component(fn ${rel_to_shared} NAME_WE)
 +        get_filename_component(rel_dir ${rel_to_shared} DIRECTORY)
 +
-+        # expected out path matching Designer_autogen layout:
-+        # <builddir>/Designer_autogen/include_<Config>/shared/<rel_dir>/<fn>.h
 +        set(out "${CMAKE_CURRENT_BINARY_DIR}/Designer_autogen/include_${CMAKE_BUILD_TYPE}/shared/${rel_dir}/${fn}.h")
 +
 +        # ensure output directory exists
@@ -47,7 +39,7 @@ index 20335e0dd..13689d246 100644
 +
 +        add_custom_command(
 +            OUTPUT ${out}
-+            COMMAND ${UIC_EXECUTABLE} "${ui}" -o "${out}"
++            COMMAND "$<TARGET_FILE:uic>" "${ui}" -o "${out}"
 +            DEPENDS "${ui}"
 +            COMMENT "Pre-generating ${out} from ${ui}"
 +            VERBATIM
