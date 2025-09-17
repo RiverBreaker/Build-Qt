@@ -13,6 +13,7 @@ jobs:
         run: cmake --version
       
       - name: Check VS cmake version
+        shell: cmd
         run: |
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
@@ -27,6 +28,7 @@ jobs:
         run: cmake --version
 
       - name: Check VS new cmake version
+        shell: cmd
         run: |
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
