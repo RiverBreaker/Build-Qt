@@ -21,8 +21,5 @@ index 1234567..abcdefg 100644
 +    execute_process(COMMAND ${Qt6_DIR}/../../../bin/uic ${ui} -o ${out})
 +endforeach()
 +
- qt_internal_add_library(Designer
-     SHARED
-     OUTPUT_NAME Qt6Designer
 -- 
 2.43.0
