@@ -1,0 +1,35 @@
+name: check for cmake version
+on:
+  workflow_dispatch:
+
+jobs: 
+  check-cmake:
+    name: check cmake version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check cmake version
+        run: cmake --version
+      
+      - name: Check VS cmake version
+        run: |
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+          cmake --version
+      
+      - name: new cmake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: '3.29.x'
+      
+      - name: Check new cmake version
+        run: cmake --version
+
+      - name: Check VS new cmake version
+        run: |
+          - name: Check VS cmake version
+        run: |
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+          cmake --version
