@@ -173,21 +173,22 @@ jobs:
           # 读取原文件
           $Content = Get-Content $File
 
-          # 找到 PRECOMPILED_HEADER "lib_pch.h" 这行的索引
-          $Index = $Content.IndexOf('    PRECOMPILED_HEADER')
+          # 新数组存放最终内容
+          $NewContent = @()
+          $Inserted = $false
 
-          if ($Index -ge 0) {
-              # 在这行之后插入
-              $Before = $Content[0..$Index+1]
-              $After = $Content[$Index+2..($Content.Length-1)]
-              $NewContent = $Before + $InsertText + $After
-
-              # 写回文件
-              Set-Content -Path $File -Value $NewContent -Encoding UTF8
-              Write-Host "插入完成。"
-          } else {
-              Write-Host "未找到 PRECOMPILED_HEADER 行，未插入内容。"
+          foreach ($line in $Content) {
+              $NewContent += $line
+              if (-not $Inserted -and $line -match 'PRECOMPILED_HEADER') {
+                  $NewContent += $InsertText
+                  $Inserted = $true
+              }
           }
+
+          # 写回文件
+          Set-Content -Path $File -Value $NewContent -Encoding UTF8
+
+          Write-Host "插入完成。"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
