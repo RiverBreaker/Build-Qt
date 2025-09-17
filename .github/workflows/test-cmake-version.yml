@@ -33,3 +33,111 @@ jobs:
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
           cmake --version
+      
+      # 安装python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+  
+      # 安装msvc
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+  
+      # 安装vsdevenv
+      - name: Setup vsdevenv
+        uses: seanmiddleditch/gha-setup-vsdevenv@master
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-windows
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: Install build tools via Chocolatey
+        shell: pwsh
+        run: |
+          choco install -y 7zip openssl llvm gperf `
+            --no-progress `
+            --limit-output
+
+          # 2. 输出各工具安装路径
+          Write-Host ""
+          Write-Host "🔍 Installed tool locations:"
+          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          foreach ($t in $tools) {
+            $cmd = Get-Command $t -ErrorAction SilentlyContinue
+            if ($cmd) {
+              Write-Host "  $t -> $($cmd.Source)"
+            } else {
+              Write-Warning "  $t not found in PATH"
+            }
+          }
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+
+      - name: Prepare build directory
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
+
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          rem 1. 查找 VS2022 安装路径并加载编译环境
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+
+          rem 2. 设置路径
+          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
+          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
+          set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
+
+          rem 3. 清理/创建
+          if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
+          mkdir "%INSTALL_DIR%" 2>nul
+          mkdir "%ARTIFACTS_DIR%" 2>nul
+
+          rem 4. 选择模式
+          if /I "%CONFIG%"=="Debug" (
+            set MODE=-debug
+          ) else if /I "%CONFIG%"=="Release" (
+            set MODE=-release
+          ) else (
+            set MODE=-debug-and-release
+          )
+
+          rem 5. 调用 configure
+          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
+            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -schannel ^
+            -platform win32-msvc ^
+            -- -Wno-dev
+
+          rem 6. 构建 & 安装
+          cmake --build . --parallel
+          ninja install
