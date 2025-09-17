@@ -20,7 +20,7 @@ install_ver_pkgs() {
 
     while read -r pkg; do
       [[ $pkg ]] && seen[$pkg]=1
-    done < <(apt-cache search "$regex" | awk '{print $1}')
+    done < <(apt-cache search "$regex" | awk '{print $1}' | sort -Vr | head -n 5)
   done
 
   ((${#seen[@]} == 0)) && { echo "No packages found for templates: $*" >&2; return 1; }
