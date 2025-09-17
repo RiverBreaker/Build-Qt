@@ -28,4 +28,5 @@ install_ver_pkgs() {
   echo "Going to install:"
   printf '  %s\n' "${pkgs[@]}"
   sudo apt-get install "${pkgs[@]}"
+  sudo apt-get clean
 }
