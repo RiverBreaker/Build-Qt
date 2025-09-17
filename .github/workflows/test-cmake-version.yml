@@ -11,7 +11,7 @@ on:
         required: false
         default: '0'
 
-jobs: 
+jobs:
   check-cmake:
     name: check cmake version
     runs-on: windows-latest
@@ -34,19 +34,19 @@ jobs:
 
       - name: Check cmake version
         run: cmake --version
-      
+
       - name: Check VS cmake version
         shell: cmd
         run: |
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
           cmake --version
-      
+
       - name: new cmake
         uses: lukka/get-cmake@latest
         with:
           cmakeVersion: '3.29.x'
-      
+
       - name: Check new cmake version
         run: cmake --version
 
@@ -56,20 +56,20 @@ jobs:
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
           cmake --version
-      
+
       # 安装python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           architecture: 'x64'
-  
+
       # 安装msvc
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
-  
+
       # 安装vsdevenv
       - name: Setup vsdevenv
         uses: seanmiddleditch/gha-setup-vsdevenv@master
@@ -121,13 +121,14 @@ jobs:
         run: |
           Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
-      
+
       - name: Apply Qt 6.0.0 Designer ui_*.h patch
         if: env.QT_VERSION <= '6.0.1'
-        shell: pwsh
+        shell: bash
         run: |
-          cd "$env:RUNNER_TEMP/qt6_src/qt-everywhere-src-$env:QT_VERSION/qttools"
-          Get-Content "$env:GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch" | patch -p1
+          cd "$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION/qttools"
+          dos2unix "$GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch"
+          patch -p1 < "$GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
@@ -167,7 +168,7 @@ jobs:
             -schannel ^
             -platform win32-msvc ^
             -- -Wno-dev
-          
+
           # rem 只关心 6.0.x
           # if %MAJ%==6 if %MIN%==0 if %PAT% LSS 2 (
           #   cmake --build . --target Designer_autogen -j1
