@@ -128,6 +128,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION/qttools"
           dos2unix "$GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch"
+          sed -i -e '/^--$/,$d' "$GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch"
           patch -p1 < "$GITHUB_WORKSPACE/patchs/0001-Workaround-for-Ninja-MSVC-pre-generate-ui-headers.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
