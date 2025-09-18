@@ -115,7 +115,7 @@ jobs:
         shell: bash
         run: |
           cd $RUNNER_TEMP/qt6_src
-          patch -p1 < $GITHUB_WORKSPACE/patches/fixed*.patch
+          patch -p1 < $GITHUB_WORKSPACE/patches/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
