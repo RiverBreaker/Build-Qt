@@ -114,8 +114,8 @@ jobs:
         if: ${{ inputs.qt_majmin }} < '6.0'
         shell: bash
         run: |
-          cd ${{ runner.temp }}\qt6_src
-          patch -p1 < ${{ github.workspace }}\patches\fixed*.patch
+          cd $RUNNER_TEMP/qt6_src
+          patch -p1 < $GITHUB_WORKSPACE/patches/fixed*.patch
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
