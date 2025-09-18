@@ -112,12 +112,12 @@ jobs:
 
       - name: Apply patch
         if: ${{ inputs.qt_majmin }} <= '6.0'
-        shell: pwsh
+        shell: bash
         run: |
-          cd $env:RUNNER_TEMP\qt6_src
-          Get-ChildItem $env:GITHUB_WORKSPACE\patchs
-          & "$env:ProgramFiles\Git\usr\bin\patch.exe" `
-            -p1 -i "$env:GITHUB_WORKSPACE\patchs\fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
+          cd $RUNNER_TEMP/qt6_src
+          ls
+          ls $GITHUB_WORKSPACE/patchs
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
