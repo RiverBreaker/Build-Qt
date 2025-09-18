@@ -1,9 +1,6 @@
 name: Test Patch
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       qt_majmin:
