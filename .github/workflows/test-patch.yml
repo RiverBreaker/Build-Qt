@@ -114,7 +114,7 @@ jobs:
         if: ${{ inputs.qt_majmin }} <= '6.0'
         shell: bash
         run: |
-          cd $RUNNER_TEMP/qt6_src
+          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
           ls
           ls $GITHUB_WORKSPACE/patchs
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
