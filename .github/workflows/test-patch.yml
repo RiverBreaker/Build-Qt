@@ -114,7 +114,7 @@ jobs:
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
       - name: Apply patch
-        if: env:QT_VERSION < '6.1.0'
+        if: ${{ inputs.qt_majmin }} < '6.0'
         shell: bash
         run: |
           cd ${{ runner.temp }}/qt6_src
