@@ -31,7 +31,7 @@ jobs:
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
-      QT_SOURCE_URL: https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
 
     steps:
       - uses: actions/checkout@v4
