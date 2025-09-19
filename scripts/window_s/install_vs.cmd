@@ -27,6 +27,15 @@ if exist "%INSTALL_CLEANUP_PATH%" (
 )
 echo --- Finished cleaning up old Visual Studio versions ---
 
+echo --- Attempting to repair system components and .NET Framework ---
+DISM.exe /Online /Cleanup-Image /RestoreHealth
+set "DISM_EXIT_CODE=!errorlevel!"
+if !DISM_EXIT_CODE! neq 0 (
+    echo WARNING: DISM.exe finished with exit code: !DISM_EXIT_CODE!. The installation may fail.
+) else (
+    echo System component repair completed successfully.
+)
+
 
 REM Define download URLs and components for different VS versions
 set "VS_URL_2017=https://aka.ms/vs/15/release/vs_buildtools.exe"
@@ -57,7 +66,7 @@ if !errorlevel! neq 0 (
 
 rem Run the installer
 echo --- Starting VS Build Tools installer... ---
-start "" /wait vs_buildtools.exe --add %VS_COMPONENTS% --quiet --wait --norestart --nocache
+start "" /wait vs_buildtools.exe %VS_COMPONENTS% --quiet --wait --norestart --nocache
 set INSTALL_EXIT_CODE=!errorlevel!
 
 del vs_buildtools.exe
