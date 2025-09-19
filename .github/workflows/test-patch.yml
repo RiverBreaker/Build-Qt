@@ -79,14 +79,14 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y 7zip openssl llvm gperf `
+          choco install -y 7zip llvm gperf `
             --no-progress `
             --limit-output
 
           # 2. 输出各工具安装路径
           Write-Host ""
           Write-Host "🔍 Installed tool locations:"
-          $tools = @('cmake', 'ninja', '7z', 'openssl', 'clang', 'gperf')
+          $tools = @('cmake', 'ninja', '7z', 'clang', 'gperf')
           foreach ($t in $tools) {
             $cmd = Get-Command $t -ErrorAction SilentlyContinue
             if ($cmd) {
@@ -111,7 +111,7 @@ jobs:
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
       - name: Apply patch
-        if: ${{ inputs.qt_majmin }} <= '6.0'
+        if: ${{ inputs.qt_majmin }} < '6.2'
         shell: bash
         run: |
           cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
