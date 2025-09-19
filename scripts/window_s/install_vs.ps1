@@ -115,30 +115,48 @@ function Add-VSToPath {
     )
     
     Write-Host "--- Adding Visual Studio to PATH ---"
-    $vsWherePath = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+    $vsWherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (-not (Test-Path $vsWherePath)) {
         Write-Error "vswhere.exe not found. Cannot add VS to PATH."
         exit 1
     }
 
-    # Find the latest installation which should be the one we just installed.
     $vsInstallPath = & $vsWherePath -latest -property installationPath -prerelease -format value
-    if (-z $vsInstallPath) {
+    if (-not $vsInstallPath) {
         Write-Error "Could not find Visual Studio installation path."
         exit 1
     }
 
-    $vcvarsPath = Join-Path $vsInstallPath "VC\\Auxiliary\\Build\\vcvars64.bat"
-    if (-not (Test-Path $vcvarsPath)) {
-        Write-Error "Could not find vcvars64.bat at $vcvarsPath"
+    $vcToolsPath = Join-Path $vsInstallPath "VC\Tools\MSVC"
+    if (-not (Test-Path $vcToolsPath)) {
+        Write-Error "Could not find VC Tools path at $vcToolsPath"
         exit 1
     }
 
-    Write-Host "Adding VS environment to GITHUB_PATH"
-    # In GitHub Actions, we call the script and then capture the environment variables.
-    # This command will print the `Path` environment variable after sourcing vcvars64.bat
-    # The output is then appended to the file specified by $env:GITHUB_PATH
-    cmd.exe /c "`"$vcvarsPath`" && echo %Path%" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+    # Find the latest MSVC toolset version
+    $latestMsVcVersion = Get-ChildItem -Path $vcToolsPath | Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $latestMsVcVersion) {
+        Write-Error "Could not find MSVC toolset version in $vcToolsPath"
+        exit 1
+    }
+
+    $msvcBinPath = Join-Path $latestMsVcVersion.FullName "bin\Hostx64\x64"
+    $commonIdePath = Join-Path $vsInstallPath "Common7\IDE"
+    $msBuildPath = Join-Path $vsInstallPath "MSBuild\Current\Bin"
+
+    Write-Host "Adding the following paths to GITHUB_PATH:"
+    if (Test-Path $msvcBinPath) {
+        Write-Host "- $msvcBinPath"
+        Add-Content -Path $env:GITHUB_PATH -Value $msvcBinPath
+    }
+    if (Test-Path $commonIdePath) {
+        Write-Host "- $commonIdePath"
+        Add-Content -Path $env:GITHUB_PATH -Value $commonIdePath
+    }
+    if (Test-Path $msBuildPath) {
+        Write-Host "- $msBuildPath"
+        Add-Content -Path $env:GITHUB_PATH -Value $msBuildPath
+    }
 
     Write-Host "Visual Studio environment has been configured."
 }

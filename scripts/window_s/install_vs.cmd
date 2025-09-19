@@ -83,15 +83,41 @@ if not defined VS_INSTALL_PATH (
     exit /b 1
 )
 
-set "VCVARS_PATH=!VS_INSTALL_PATH!\VC\Auxiliary\Build\vcvars64.bat"
-
-if not exist "!VCVARS_PATH!" (
-    echo ERROR: Could not find vcvars64.bat at !VCVARS_PATH!
+set "VC_TOOLS_PATH=!VS_INSTALL_PATH!\VC\Tools\MSVC"
+if not exist "!VC_TOOLS_PATH!" (
+    echo ERROR: Could not find VC Tools path at !VC_TOOLS_PATH!
     exit /b 1
 )
 
-echo Adding VS environment to GITHUB_PATH
-(call "!VCVARS_PATH!" && echo %PATH%) >> "%GITHUB_PATH%"
+REM Find the latest MSVC toolset version (get the last directory name in reverse sorted list)
+set "LATEST_MSVC_VERSION="
+for /f "tokens=*" %%d in ('dir /b /ad /o-n "!VC_TOOLS_PATH!"') do (
+    set "LATEST_MSVC_VERSION=%%d"
+    goto :found_msvc_cmd
+)
+:found_msvc_cmd
+
+if not defined LATEST_MSVC_VERSION (
+    echo ERROR: Could not find MSVC toolset version in !VC_TOOLS_PATH!
+    exit /b 1
+)
+
+set "MSVC_BIN_PATH=!VC_TOOLS_PATH!\!LATEST_MSVC_VERSION!\bin\Hostx64\x64"
+set "COMMON_IDE_PATH=!VS_INSTALL_PATH!\Common7\IDE"
+set "MSBUILD_PATH=!VS_INSTALL_PATH!\MSBuild\Current\Bin"
+
+if exist "!MSVC_BIN_PATH!" (
+    echo Adding to GITHUB_PATH: !MSVC_BIN_PATH!
+    echo !MSVC_BIN_PATH!>>"%GITHUB_PATH%"
+)
+if exist "!COMMON_IDE_PATH!" (
+    echo Adding to GITHUB_PATH: !COMMON_IDE_PATH!
+    echo !COMMON_IDE_PATH!>>"%GITHUB_PATH%"
+)
+if exist "!MSBUILD_PATH!" (
+    echo Adding to GITHUB_PATH: !MSBUILD_PATH!
+    echo !MSBUILD_PATH!>>"%GITHUB_PATH%"
+)
 
 echo Visual Studio environment has been configured.
 
