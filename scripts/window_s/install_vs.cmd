@@ -83,13 +83,27 @@ if %INSTALL_EXIT_CODE% equ 0 (
 )
 
 echo --- Adding Visual Studio to PATH ---
+
+REM Map year to vswhere version range
+set "VS_VERSION_RANGE="
+if "%VS_VERSION%" equ "2022" set "VS_VERSION_RANGE=[17.0,18.0)"
+if "%VS_VERSION%" equ "2019" set "VS_VERSION_RANGE=[16.0,17.0)"
+if "%VS_VERSION%" equ "2017" set "VS_VERSION_RANGE=[15.0,16.0)"
+
+if not defined VS_VERSION_RANGE (
+    echo ERROR: Unsupported VS Version for vswhere: %VS_VERSION%
+    exit /b 1
+)
+
 set "VS_INSTALL_PATH="
-for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version %VS_VERSION% -property installationPath -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) do (
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -version "%VS_VERSION_RANGE%" -property installationPath -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) do (
     set "VS_INSTALL_PATH=%%i"
 )
 
 if not defined VS_INSTALL_PATH (
-    echo Failed to find Visual Studio %VS_VERSION% installation path.
+    echo Failed to find Visual Studio %VS_VERSION% installation path using vswhere.
+    echo --- Running vswhere -all for diagnostics ---
+    "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all
     exit /b 1
 )
 
