@@ -16,12 +16,12 @@ set "VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.
 
 if exist "%VSWHERE_PATH%" (
     if exist "%VS_INSTALLER_PATH%" (
-        for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -all -property installationPath`) do (
-            echo Uninstalling Visual Studio from: %%i
-            "%VS_INSTALLER_PATH%" uninstall --installPath "%%i" --quiet --wait --force --norestart
+        for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -all -property instanceId`) do (
+            echo Uninstalling Visual Studio instance: %%i
+            "%VS_INSTALLER_PATH%" uninstall --instanceId "%%i" --quiet --wait --force --norestart
             set "UNINSTALL_EXIT_CODE=!errorlevel!"
             if !UNINSTALL_EXIT_CODE! neq 0 (
-                echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !UNINSTALL_EXIT_CODE!
+                echo WARNING: Failed to uninstall Visual Studio instance %%i. Exit code: !UNINSTALL_EXIT_CODE!
                 if "!UNINSTALL_EXIT_CODE!" equ "3010" (
                     echo A reboot is required to complete the uninstall.
                 )
