@@ -1,188 +1,155 @@
+#Requires -RunAsAdministrator
+
+<#
+.SYNOPSIS
+    Automates the uninstallation of existing Visual Studio instances and the installation of a specific version of Visual Studio Build Tools.
+.DESCRIPTION
+    This script is designed for use in GitHub Actions CI environments on Windows runners. It performs the following actions:
+    1. Uninstalls all existing versions of Visual Studio to ensure a clean environment.
+    2. Downloads and installs a specified version of Visual Studio Build Tools (2017, 2019, or 2022).
+    3. Adds the necessary Visual Studio directories to the system PATH environment variable.
+.PARAMETER VSVersion
+    Specifies the version of Visual Studio Build Tools to install.
+    Valid values are "2017", "2019", and "2022". The default is "2022".
+.EXAMPLE
+    .
+\install_vs.ps1 -VSVersion 2019
+    This command will uninstall any existing Visual Studio installations and then install Visual Studio Build Tools 2019.
+#>
 param(
     [ValidateSet("2017", "2019", "2022")]
     [string]$VSVersion = "2022"
 )
 
-function Get-VSComponents {
-    param([string]$Version)
+function Uninstall-OldVS {
+    Write-Host "--- Searching for existing Visual Studio installations to uninstall ---"
+    $vsInstallerPath = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vs_installer.exe"
 
-    $components = @()
-
-    # 公共组件
-    $components += "Microsoft.VisualStudio.Workload.NativeDesktop"
-    $components += "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
-    $components += "Microsoft.VisualStudio.Component.VC.CMake.Project"
-    $components += "Microsoft.VisualStudio.Component.VC.ATL"
-    $components += "Microsoft.VisualStudio.Component.TestTools.BuildTools"
-    $components += "Microsoft.VisualStudio.Component.VC.CoreIde"
-
-    # 版本特定的Windows SDK
-    switch ($Version) {
-        "2017" { $components += "Microsoft.VisualStudio.Component.Windows10SDK.17763" }
-        "2019" { $components += "Microsoft.VisualStudio.Component.Windows10SDK.19041" }
-        "2022" { $components += "Microsoft.VisualStudio.Component.Windows10SDK.20348" }
+    if (Test-Path $vsInstallerPath) {
+        $installations = & "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe" -all -property installationPath
+        foreach ($inst in $installations) {
+            if (Test-Path $inst) {
+                Write-Host "Uninstalling Visual Studio from: $inst"
+                $proc = Start-Process -FilePath $vsInstallerPath -ArgumentList "uninstall --path `"$inst`" --quiet --force --norestart" -Wait -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Write-Error "Failed to uninstall Visual Studio at $inst. Exit code: $($proc.ExitCode)"
+                    # We can choose to exit here, but for CI it might be better to continue
+                }
+            }
+        }
+    } else {
+        Write-Host "vs_installer.exe not found. Skipping uninstallation."
     }
-
-    return $components
+    Write-Host "--- Finished uninstalling old Visual Studio versions ---"
 }
 
-Write-Host "选择的VS版本: $VSVersion"
-
-# 卸载所有已安装的VS版本
-Write-Host "正在卸载已安装的Visual Studio版本..."
-$installers = @()
-$installers += Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio" -Recurse -Filter "vs_installer.exe" -ErrorAction SilentlyContinue
-$installers += Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter "vs_installer.exe" -ErrorAction SilentlyContinue
-
-foreach ($installer in $installers) {
-    Write-Host "找到安装程序: $($installer.FullName)"
-    try {
-        $process = Start-Process -FilePath $installer.FullName -ArgumentList @("uninstall", "--quiet", "--wait", "--norestart", "--force") -Wait -PassThru -NoNewWindow
-        Write-Host "卸载完成，退出代码: $($process.ExitCode)"
-        Start-Sleep -Seconds 3
-    }
-    catch {
-        Write-Warning "卸载失败: $($_.Exception.Message)"
-    }
-}
-
-# 根据版本设置下载URL
-$vsUrls = @{
-    "2017" = "https://aka.ms/vs/15/release/vs_enterprise.exe"
-    "2019" = "https://aka.ms/vs/16/release/vs_enterprise.exe"
-    "2022" = "https://aka.ms/vs/17/release/vs_enterprise.exe"
-}
-
-if (-not $vsUrls.ContainsKey($VSVersion)) {
-    Write-Error "不支持的VS版本: $VSVersion。支持的版本: $($vsUrls.Keys -join ', ')"
-    exit 1
-}
-
-$vsUrl = $vsUrls[$VSVersion]
-
-# 下载VS安装程序
-Write-Host "正在下载VS$VSVersion安装程序..."
-$vsInstallerPath = "$env:TEMP\vs_installer_$VSVersion.exe"
-
-try {
-    $progressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri $vsUrl -OutFile $vsInstallerPath
-    Write-Host "下载完成"
-}
-catch {
-    Write-Error "下载失败: $($_.Exception.Message)"
-    exit 1
-}
-finally {
-    $progressPreference = 'Continue'
-}
-
-# 获取版本特定的组件
-$components = Get-VSComponents -Version $VSVersion
-Write-Host "安装组件: $($components -join ', ')"
-
-# 安装VS必要组件
-Write-Host "正在安装VS$VSVersion必要组件..."
-$installArgs = @("--quiet", "--wait", "--norestart", "--nocache")
-foreach ($component in $components) {
-    $installArgs += "--add"
-    $installArgs += $component
-}
-
-try {
-    $process = Start-Process -FilePath $vsInstallerPath -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
-    if ($process.ExitCode -ne 0) {
-        Write-Error "VS$VSVersion安装失败，退出代码: $($process.ExitCode)"
-        exit 1
-    }
-}
-catch {
-    Write-Error "安装过程出错: $($_.Exception.Message)"
-    exit 1
-}
-
-# 查找vcvarsall.bat
-Write-Host "正在查找VC工具..."
-$searchPaths = @(
-    "C:\Program Files (x86)\Microsoft Visual Studio\$VSVersion\*",
-    "C:\Program Files\Microsoft Visual Studio\$VSVersion\*"
-)
-
-$vcvarsPath = $null
-foreach ($path in $searchPaths) {
-    $vcvarsPath = Get-ChildItem -Path $path -Recurse -Filter "vcvarsall.bat" -ErrorAction SilentlyContinue |
-                  Select-Object -First 1 -ExpandProperty FullName
-    if ($vcvarsPath) { break }
-}
-
-if (-not $vcvarsPath) {
-    Write-Error "未找到vcvarsall.bat文件"
-    exit 1
-}
-
-Write-Host "VCVARS路径: $vcvarsPath"
-
-# 设置环境变量
-$env:VS_VCVARS = $vcvarsPath
-$env:VS_VERSION = $VSVersion
-"VS_VCVARS=$vcvarsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-"VS_VERSION=$VSVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-# 添加到PATH
-$vsInstallPath = Split-Path (Split-Path (Split-Path $vcvarsPath))
-$vcToolsPath = Join-Path $vsInstallPath "VC\Tools\MSVC"
-
-# 查找最新版本的编译器
-$latestVersion = Get-ChildItem -Path $vcToolsPath -ErrorAction SilentlyContinue |
-                 Where-Object { $_.PSIsContainer } |
-                 Sort-Object Name -Descending |
-                 Select-Object -First 1
-
-if ($latestVersion) {
-    $binPaths = @(
-        Join-Path $latestVersion.FullName "bin\Hostx64\x64",
-        Join-Path $latestVersion.FullName "bin\Hostx86\x86"
+function Install-VS {
+    param(
+        [string]$Version
     )
 
-    foreach ($binPath in $binPaths) {
-        if (Test-Path $binPath) {
-            $env:PATH = "$binPath;$env:PATH"
-            "PATH=$binPath;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-            Write-Host "已添加编译器工具到PATH: $binPath"
+    Write-Host "--- Starting installation of Visual Studio Build Tools $Version ---"
+    $vsBootstrapperUrl = ""
+    $vsComponents = @(
+        "Microsoft.VisualStudio.Workload.VCTools",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "Microsoft.VisualStudio.Component.Windows10SDK.19041" # A common SDK, adjust if needed
+    )
+
+    switch ($Version) {
+        "2017" { 
+            $vsBootstrapperUrl = "https://aka.ms/vs/15/release/vs_buildtools.exe"
+            # For VS 2017, a specific SDK might be needed depending on the project
+            $vsComponents += "Microsoft.VisualStudio.Component.Windows10SDK.17763"
+        }
+        "2019" { 
+            $vsBootstrapperUrl = "https://aka.ms/vs/16/release/vs_buildtools.exe" 
+        }
+        "2022" { 
+            $vsBootstrapperUrl = "https://aka.ms/vs/17/release/vs_buildtools.exe" 
+            $vsComponents += "Microsoft.VisualStudio.Component.Windows11SDK.22000"
+        }
+        default {
+            Write-Error "Unsupported VS Version: $Version"
+            exit 1
         }
     }
-}
 
-# 添加通用工具到PATH
-$commonPaths = @(
-    Join-Path $vsInstallPath "Common7\Tools",
-    Join-Path $vsInstallPath "Common7\IDE",
-    Join-Path $vsInstallPath "MSBuild\Current\Bin"
-)
+    $installerPath = Join-Path $env:TEMP "vs_buildtools.exe"
+    Write-Host "Downloading VS Bootstrapper for $Version from $vsBootstrapperUrl..."
+    Invoke-WebRequest -Uri $vsBootstrapperUrl -OutFile $installerPath
 
-foreach ($commonPath in $commonPaths) {
-    if (Test-Path $commonPath) {
-        $env:PATH = "$commonPath;$env:PATH"
-        "PATH=$commonPath;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-        Write-Host "已添加通用工具到PATH: $commonPath"
+    $arguments = @(
+        "--quiet",
+        "--wait",
+        "--norestart",
+        "--nocache",
+        "--installPath",
+        "C:\\VS\\$Version"
+    )
+    foreach ($component in $vsComponents) {
+        $arguments += "--add"
+        $arguments += $component
     }
+
+    Write-Host "Starting VS Build Tools installer with arguments: $($arguments -join ' ')"
+    $proc = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru
+
+    if ($proc.ExitCode -ne 0) {
+        Write-Error "Visual Studio installation failed with exit code: $($proc.ExitCode)"
+        # Attempt to read the log file for more details
+        $logFile = Join-Path $env:TEMP "dd_bootstrapper_*.log"
+        Get-ChildItem -Path $logFile | ForEach-Object {
+            Write-Host "Displaying log file: $_.FullName"
+            Get-Content $_.FullName | Out-String | Write-Warning
+        }
+        exit 1
+    }
+
+    Write-Host "--- Visual Studio Build Tools $Version installation completed successfully ---"
 }
 
-Write-Host "VS$VSVersion安装和配置完成"
+function Add-VSToPath {
+    param(
+        [string]$Version
+    )
+    
+    Write-Host "--- Adding Visual Studio to PATH ---"
+    $vsWherePath = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+    if (-not (Test-Path $vsWherePath)) {
+        Write-Error "vswhere.exe not found. Cannot add VS to PATH."
+        exit 1
+    }
 
-# 验证安装
-Write-Host "`n验证安装:"
+    # Find the latest installation which should be the one we just installed.
+    $vsInstallPath = & $vsWherePath -latest -property installationPath -prerelease -format value
+    if (-z $vsInstallPath) {
+        Write-Error "Could not find Visual Studio installation path."
+        exit 1
+    }
+
+    $vcvarsPath = Join-Path $vsInstallPath "VC\\Auxiliary\\Build\\vcvars64.bat"
+    if (-not (Test-Path $vcvarsPath)) {
+        Write-Error "Could not find vcvars64.bat at $vcvarsPath"
+        exit 1
+    }
+
+    Write-Host "Adding VS environment to GITHUB_PATH"
+    # In GitHub Actions, we call the script and then capture the environment variables.
+    # This command will print the `Path` environment variable after sourcing vcvars64.bat
+    # The output is then appended to the file specified by $env:GITHUB_PATH
+    cmd.exe /c "`"$vcvarsPath`" && echo %Path%" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+    Write-Host "Visual Studio environment has been configured."
+}
+
+# Main script execution
 try {
-    $clVersion = & "cl.exe" 2>&1 | Select-String "Version" | Select-Object -First 1
-    if ($clVersion) {
-        Write-Host "编译器: $clVersion"
-    }
-
-    $msbuildVersion = & "msbuild.exe" "-version" 2>&1
-    if ($msbuildVersion) {
-        Write-Host "MSBuild: $($msbuildVersion -join ' ')"
-    }
-}
-catch {
-    Write-Warning "验证工具时出错: $($_.Exception.Message)"
+    Uninstall-OldVS
+    Install-VS -Version $VSVersion
+    Add-VSToPath -Version $VSVersion
+    Write-Host "Script finished successfully."
+} catch {
+    Write-Error "An error occurred: $($_.Exception.Message)"
+    exit 1
 }
