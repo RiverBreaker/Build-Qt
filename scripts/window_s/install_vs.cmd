@@ -15,13 +15,13 @@ if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
     for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -property installationPath`) do (
         if exist "%%i\..\Installer\vs_installer.exe" (
             echo Uninstalling Visual Studio from: %%i
-            start "" /wait "%%i\..\Installer\vs_installer.exe" uninstall --path "%%i" --quiet --force --norestart
+            start "" /wait "%%i\..\Installer\vs_installer.exe" uninstall --installPath "%%i" --quiet --force --norestart
             if !errorlevel! neq 0 (
                 echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !errorlevel!
             )
         ) else (
              echo Installer not found for instance %%i, trying default path.
-             start "" /wait "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" uninstall --path "%%i" --quiet --force --norestart
+             start "" /wait "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" uninstall --installPath "%%i" --quiet --force --norestart
         )
     )
 ) else (
@@ -49,94 +49,80 @@ if not defined VS_URL (
     exit /b 1
 )
 
-REM Download and install VS Build Tools
-set "INSTALLER_PATH=%TEMP%\vs_buildtools.exe"
-echo --- Downloading VS Bootstrapper for %VS_VERSION% from %VS_URL% ---
-curl -L -o "%INSTALLER_PATH%" "%VS_URL%"
-
-echo --- Starting VS Build Tools installer... ---
-start "" /wait "%INSTALLER_PATH%" --quiet --wait --norestart --nocache --installPath "C:\VS\%VS_VERSION%" !VS_COMPONENTS!
-
+rem Download the bootstrapper
+echo --- Downloading VS Bootstrapper for %VS_VERSION% from `%VS_URL%` ---
+curl -L -o vs_buildtools.exe "%VS_URL%"
 if !errorlevel! neq 0 (
-    echo ERROR: Visual Studio installation failed with exit code: !errorlevel!
-    REM Try to find and display logs
-    for /r "%TEMP%" %%f in (dd_bootstrapper_*.log) do (
-        echo Displaying log file: %%f
-        type "%%f"
+    echo Failed to download Visual Studio bootstrapper.
+    exit /b 1
+)
+
+rem Run the installer
+echo --- Starting VS Build Tools installer... ---
+start "" /wait vs_buildtools.exe --add %VS_COMPONENTS% --quiet --wait --norestart --nocache
+set INSTALL_EXIT_CODE=!errorlevel!
+
+del vs_buildtools.exe
+
+if %INSTALL_EXIT_CODE% equ 0 (
+    echo --- Visual Studio Build Tools %VS_VERSION% installation completed successfully. ---
+) else (
+    echo --- Visual Studio Build Tools %VS_VERSION% installation failed with exit code %INSTALL_EXIT_CODE%. ---
+    if exist "%ProgramFiles(x86)%\Microsoft\Temp\dd_bootstrapper_*.log" (
+        echo --- Displaying bootstrapper log ---
+        type "%ProgramFiles(x86)%\Microsoft\Temp\dd_bootstrapper_*.log"
     )
     exit /b 1
 )
 
-echo --- Visual Studio Build Tools %VS_VERSION% installation completed successfully. ---
-
-
-REM Add VS to PATH
 echo --- Adding Visual Studio to PATH ---
-set "VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-
-if not exist "%VSWHERE_PATH%" (
-    echo ERROR: vswhere.exe not found. Cannot add VS to PATH.
-    exit /b 1
-)
-
-for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -latest -property installationPath -prerelease -format value`) do (
+set "VS_INSTALL_PATH="
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version %VS_VERSION% -property installationPath -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) do (
     set "VS_INSTALL_PATH=%%i"
 )
 
 if not defined VS_INSTALL_PATH (
-    echo ERROR: Could not find Visual Studio installation path.
+    echo Failed to find Visual Studio %VS_VERSION% installation path.
     exit /b 1
 )
 
-set "VC_TOOLS_PATH=!VS_INSTALL_PATH!\VC\Tools\MSVC"
-if not exist "!VC_TOOLS_PATH!" (
-    echo ERROR: Could not find VC Tools path at !VC_TOOLS_PATH!
-    exit /b 1
+set "MSVC_DIR="
+for /f "delims=" %%d in ('dir /b /ad /o-n "%VS_INSTALL_PATH%\VC\Tools\MSVC"') do (
+    set "MSVC_DIR=%%d"
+    goto :found_msvc_dir_for_path
+)
+:found_msvc_dir_for_path
+
+if defined MSVC_DIR (
+    set "MSVC_BIN_PATH=%VS_INSTALL_PATH%\VC\Tools\MSVC\%MSVC_DIR%\bin\Hostx64\x64"
+    echo Adding to GITHUB_PATH: %MSVC_BIN_PATH%
+    echo %MSVC_BIN_PATH%>>"%GITHUB_PATH%"
+) else (
+    echo MSVC tools directory not found for PATH setup.
 )
 
-REM Find the latest MSVC toolset version (get the last directory name in reverse sorted list)
-set "LATEST_MSVC_VERSION="
-for /f "tokens=*" %%d in ('dir /b /ad /o-n "!VC_TOOLS_PATH!"') do (
-    set "LATEST_MSVC_VERSION=%%d"
-    goto :found_msvc_cmd
-)
-:found_msvc_cmd
+set "COMMON_IDE_PATH=%VS_INSTALL_PATH%\Common7\IDE"
+echo Adding to GITHUB_PATH: %COMMON_IDE_PATH%
+echo %COMMON_IDE_PATH%>>"%GITHUB_PATH%"
 
-if not defined LATEST_MSVC_VERSION (
-    echo ERROR: Could not find MSVC toolset version in !VC_TOOLS_PATH!
-    exit /b 1
-)
-
-set "MSVC_BIN_PATH=!VC_TOOLS_PATH!\!LATEST_MSVC_VERSION!\bin\Hostx64\x64"
-set "COMMON_IDE_PATH=!VS_INSTALL_PATH!\Common7\IDE"
-set "MSBUILD_PATH=!VS_INSTALL_PATH!\MSBuild\Current\Bin"
-
-if exist "!MSVC_BIN_PATH!" (
-    echo Adding to GITHUB_PATH: !MSVC_BIN_PATH!
-    echo !MSVC_BIN_PATH!>>"%GITHUB_PATH%"
-)
-if exist "!COMMON_IDE_PATH!" (
-    echo Adding to GITHUB_PATH: !COMMON_IDE_PATH!
-    echo !COMMON_IDE_PATH!>>"%GITHUB_PATH%"
-)
-if exist "!MSBUILD_PATH!" (
-    echo Adding to GITHUB_PATH: !MSBUILD_PATH!
-    echo !MSBUILD_PATH!>>"%GITHUB_PATH%"
-)
+set "MSBUILD_PATH=%VS_INSTALL_PATH%\MSBuild\Current\Bin"
+echo Adding to GITHUB_PATH: %MSBUILD_PATH%
+echo %MSBUILD_PATH%>>"%GITHUB_PATH%"
 
 echo --- Verifying installation ---
-for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
-    set VS_INSTALL_PATH=%%i
-)
-
 if defined VS_INSTALL_PATH (
-    echo Visual Studio found at: %VS_INSTALL_PATH%
-    set "CL_PATH=%VS_INSTALL_PATH%\VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe"
-    set "MSBUILD_PATH=%VS_INSTALL_PATH%\MSBuild\Current\Bin\MSBuild.exe"
+    echo Visual Studio %VS_VERSION% found at: %VS_INSTALL_PATH%
 
-    for /f "delims=" %%j in ('dir /b /s "%CL_PATH%"') do (
-        echo Verifying compiler version:
-        "%%j" /version
+    if defined MSVC_DIR (
+        set "CL_PATH=%VS_INSTALL_PATH%\VC\Tools\MSVC\%MSVC_DIR%\bin\Hostx64\x64\cl.exe"
+        if exist "%CL_PATH%" (
+            echo Verifying compiler version:
+            "%CL_PATH%" /version
+        ) else (
+            echo cl.exe not found at %CL_PATH%
+        )
+    ) else (
+        echo MSVC tools directory not found for verification.
     )
 
     if exist "%MSBUILD_PATH%" (
@@ -146,7 +132,7 @@ if defined VS_INSTALL_PATH (
         echo MSBuild.exe not found.
     )
 ) else (
-    echo Visual Studio installation not found.
+    echo Visual Studio %VS_VERSION% installation not found after install.
 )
 
 echo Visual Studio environment has been configured.

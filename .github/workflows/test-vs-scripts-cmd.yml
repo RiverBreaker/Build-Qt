@@ -1,4 +1,4 @@
-name: Test VS Scripts (CMD)
+name: Test VS Scripts
 on:
   workflow_dispatch:
 
@@ -6,7 +6,8 @@ jobs:
   test-vs-scripts-cmd:
     name: Test VS Scripts (CMD)
     runs-on: windows-latest
-
+    matrix:
+      shell: [cmd,pwsh]
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +18,13 @@ jobs:
           call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
 
       - name: setup new vs
+        if: matrix.shell == 'cmd'
         shell: cmd
         run: |
           call "%GITHUB_WORKSPACE%\scripts\window_s\install_vs.cmd" 2019
+
+      - name: setup new vs
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\window_s\install_vs.ps1" 2019
