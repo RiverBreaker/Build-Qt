@@ -20,9 +20,7 @@ if "%VS_VERSION%"=="2017" (
 )
 
 :: 组件列表（按需调整）
-setlocal enabledelayedexpansion
 set "COMP_LIST=Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project Microsoft.VisualStudio.Component.VC.ATL Microsoft.VisualStudio.Component.Windows10SDK.19041 Microsoft.VisualStudio.Component.TestTools.BuildTools Microsoft.VisualStudio.Component.VC.CoreIde"
-endlocal & set "COMP_LIST=%COMP_LIST%"
 
 :: Helper: 构建 --add 参数
 set "ADD_ARGS="
@@ -32,9 +30,9 @@ for %%C in (%COMP_LIST%) do (
 
 :: 首先尝试使用 vswhere 查找已有安装（并检查是否满足要求）
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist "%VSWHERE%" (
-    echo 找到 vswhere: %VSWHERE%
-    for /f "usebackq tokens=*" %%V in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+if exist "!VSWHERE!" (
+    echo 找到 vswhere: !VSWHERE!
+    for /f "usebackq tokens=*" %%V in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
         set "EXISTING_INSTALL=%%V"
     )
 ) else (
@@ -42,7 +40,7 @@ if exist "%VSWHERE%" (
 )
 
 if defined EXISTING_INSTALL (
-    echo 已检测到具有 VC.Tools 的安装: %EXISTING_INSTALL%
+    echo 已检测到具有 VC.Tools 的安装: !EXISTING_INSTALL!
     echo 跳过安装步骤。
 ) else (
     if not "%FORCE_UNINSTALL%"=="1" (
@@ -71,18 +69,18 @@ if defined EXISTING_INSTALL (
 )
 
 :: 用 vswhere 再次查找安装路径并定位 vcvarsall.bat（更可靠）
-if exist "%VSWHERE%" (
-    for /f "usebackq tokens=*" %%V in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+if exist "!VSWHERE!" (
+    for /f "usebackq tokens=*" %%V in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
         set "VS_INSTALL_PATH=%%V"
     )
 )
 
 if defined VS_INSTALL_PATH (
-    set "VS_VCVARS=%VS_INSTALL_PATH%\VC\Auxiliary\Build\vcvarsall.bat"
-    if exist "%VS_VCVARS%" (
-        echo 找到 vcvarsall.bat: %VS_VCVARS%
+    set "VS_VCVARS=!VS_INSTALL_PATH!\VC\Auxiliary\Build\vcvarsall.bat"
+    if exist "!VS_VCVARS!" (
+        echo 找到 vcvarsall.bat: !VS_VCVARS!
     ) else (
-        echo 未在 "%VS_INSTALL_PATH%" 下找到 vcvarsall.bat，尝试其他常见路径...
+        echo 未在 "!VS_INSTALL_PATH!" 下找到 vcvarsall.bat，尝试其他常见路径...
         :: 额外尝试 Program Files (x86) 和 Program Files
         for %%P in ("%ProgramFiles(x86)%\Microsoft Visual Studio\%VS_VERSION%\*" "%ProgramFiles%\Microsoft Visual Studio\%VS_VERSION%\*") do (
             for /f "delims=" %%F in ('dir /s /b "%%~P\VC\Auxiliary\Build\vcvarsall.bat" 2^>nul') do (
@@ -110,33 +108,31 @@ if not defined VS_VCVARS (
     exit /b 1
 )
 
-echo VCVARS 路径: %VS_VCVARS%
+echo VCVARS 路径: !VS_VCVARS!
 
 :: 将路径写入 GitHub Actions 环境文件（persist）
-echo VS_VCVARS=%VS_VCVARS%>>"%GITHUB_ENV%"
-echo VS_VERSION=%VS_VERSION%>>"%GITHUB_ENV%"
+>>"%GITHUB_ENV%" echo VS_VCVARS=!VS_VCVARS!
+>>"%GITHUB_ENV%" echo VS_VERSION=%VS_VERSION%
 
 :: 将 bin 路径添加到 PATH（寻找最新 MSVC 工具链）
-for /f "delims=" %%D in ('dir /b "%~dp0" 2^>nul') do rem >nul
-:: 计算 VS 安装根目录
-for %%I in ("%VS_VCVARS%\..\..\..") do set "VS_INSTALL_ROOT=%%~fi"
-set "VC_TOOLS_PATH=%VS_INSTALL_ROOT%\VC\Tools\MSVC"
+for %%I in ("!VS_VCVARS!\..\..\..") do set "VS_INSTALL_ROOT=%%~fi"
+set "VC_TOOLS_PATH=!VS_INSTALL_ROOT!\VC\Tools\MSVC"
 set "LATEST_VERSION="
-for /f "tokens=*" %%V in ('dir /b "%VC_TOOLS_PATH%" 2^>nul ^| sort /r') do (
+for /f "tokens=*" %%V in ('dir /b "!VC_TOOLS_PATH!" 2^>nul ^| sort /r') do (
     set "LATEST_VERSION=%%V"
     goto :verfound
 )
 :verfound
 if defined LATEST_VERSION (
-    set "BIN_PATH=%VC_TOOLS_PATH%\%LATEST_VERSION%\bin\Hostx64\x64"
-    if exist "%BIN_PATH%" (
-        echo PATH=%BIN_PATH%;%PATH%>>"%GITHUB_ENV%"
-        echo 已把 %BIN_PATH% 添加到 PATH（通过 GITHUB_ENV）
+    set "BIN_PATH=!VC_TOOLS_PATH!\!LATEST_VERSION!\bin\Hostx64\x64"
+    if exist "!BIN_PATH!" (
+        >>"%GITHUB_ENV%" echo PATH=!BIN_PATH!;%%PATH%%
+        echo 已把 !BIN_PATH! 添加到 PATH（通过 GITHUB_ENV）
     ) else (
-        echo 未找到预期的编译器 bin 路径: %BIN_PATH%
+        echo 未找到预期的编译器 bin 路径: !BIN_PATH!
     )
 ) else (
-    echo 未找到 VC Tools 版本目录: %VC_TOOLS_PATH%
+    echo 未找到 VC Tools 版本目录: !VC_TOOLS_PATH!
 )
 
 echo 安装/配置完成
