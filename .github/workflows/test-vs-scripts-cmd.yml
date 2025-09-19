@@ -6,6 +6,7 @@ jobs:
   test-vs-scripts-cmd:
     name: Test VS Scripts (CMD)
     runs-on: windows-latest
+    strategy:
     matrix:
       shell: [cmd,pwsh]
     steps:
