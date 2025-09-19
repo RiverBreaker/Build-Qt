@@ -26,8 +26,8 @@ jobs:
         run: |
           call "%GITHUB_WORKSPACE%\scripts\window_s\install_vs.cmd" 2019
 
-      - name: setup new vs
-        if: matrix.shell == 'pwsh'
-        shell: pwsh
-        run: |
-          & "${{ github.workspace }}\scripts\window_s\install_vs.ps1" 2019
+      # - name: setup new vs
+      #   if: matrix.shell == 'pwsh'
+      #   shell: pwsh
+      #   run: |
+      #     & "${{ github.workspace }}\scripts\window_s\install_vs.ps1" 2019
