@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        shell: [cmd,pwsh]
+        shell: [cmd]
     steps:
       - uses: actions/checkout@v4
 

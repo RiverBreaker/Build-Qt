@@ -11,18 +11,24 @@ echo --- Selected VS Version: %VS_VERSION% ---
 
 REM Uninstall existing VS instances
 echo --- Searching for existing Visual Studio installations to uninstall ---
-if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
-    for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -property installationPath`) do (
-        if exist "%%i\..\Installer\vs_installer.exe" (
+set "VS_INSTALLER_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe"
+set "VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+
+if exist "%VSWHERE_PATH%" (
+    if exist "%VS_INSTALLER_PATH%" (
+        for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -all -property installationPath`) do (
             echo Uninstalling Visual Studio from: %%i
-            start "" /wait "%%i\..\Installer\vs_installer.exe" uninstall --installPath "%%i" --quiet --force --norestart
-            if !errorlevel! neq 0 (
-                echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !errorlevel!
+            "%VS_INSTALLER_PATH%" --quiet --wait --force --norestart uninstall --installPath "%%i"
+            set UNINSTALL_EXIT_CODE=!errorlevel!
+            if !UNINSTALL_EXIT_CODE! neq 0 (
+                echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !UNINSTALL_EXIT_CODE!
+                if !UNINSTALL_EXIT_CODE! equ 3010 (
+                    echo A reboot is required to complete the uninstall.
+                )
             )
-        ) else (
-             echo Installer not found for instance %%i, trying default path.
-             start "" /wait "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" uninstall --installPath "%%i" --quiet --force --norestart
         )
+    ) else (
+        echo vs_installer.exe not found at %VS_INSTALLER_PATH%. Skipping uninstallation.
     )
 ) else (
     echo vswhere.exe not found. Skipping uninstallation.
