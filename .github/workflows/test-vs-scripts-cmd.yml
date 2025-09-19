@@ -9,8 +9,8 @@ jobs:
     name: Test VS Scripts (CMD)
     runs-on: windows-latest
     strategy:
-    matrix:
-      shell: [cmd,pwsh]
+      matrix:
+        shell: [cmd,pwsh]
     steps:
       - uses: actions/checkout@v4
 
