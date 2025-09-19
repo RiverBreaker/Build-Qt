@@ -32,7 +32,7 @@ for %%C in (%COMP_LIST%) do (
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist "!VSWHERE!" (
     echo 找到 vswhere: !VSWHERE!
-    for /f "usebackq tokens=*" %%V in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+    for /f "tokens=*" %%V in ('cmd /c ""!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul"') do (
         set "EXISTING_INSTALL=%%V"
     )
 ) else (
@@ -70,7 +70,7 @@ if defined EXISTING_INSTALL (
 
 :: 用 vswhere 再次查找安装路径并定位 vcvarsall.bat（更可靠）
 if exist "!VSWHERE!" (
-    for /f "usebackq tokens=*" %%V in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+    for /f "tokens=*" %%V in ('cmd /c ""!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul"') do (
         set "VS_INSTALL_PATH=%%V"
     )
 )
@@ -126,7 +126,7 @@ for /f "tokens=*" %%V in ('dir /b "!VC_TOOLS_PATH!" 2^>nul ^| sort /r') do (
 if defined LATEST_VERSION (
     set "BIN_PATH=!VC_TOOLS_PATH!\!LATEST_VERSION!\bin\Hostx64\x64"
     if exist "!BIN_PATH!" (
-        >>"%GITHUB_ENV%" echo PATH=!BIN_PATH!;%%PATH%%
+        >>"%GITHUB_ENV%" echo PATH=!BIN_PATH!;!PATH!
         echo 已把 !BIN_PATH! 添加到 PATH（通过 GITHUB_ENV）
     ) else (
         echo 未找到预期的编译器 bin 路径: !BIN_PATH!
