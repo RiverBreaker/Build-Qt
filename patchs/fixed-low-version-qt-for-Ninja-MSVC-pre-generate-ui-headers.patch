@@ -1,5 +1,5 @@
---- qttools/src/designer/src/lib/CMakeLists.txt	2025-09-18 17:43:39.576275700 +0800
-+++ qttools/src/designer/src/lib/CMakeLists.txt	2025-09-19 08:45:29.922821800 +0800
+--- a/qttools/src/designer/src/lib/CMakeLists.txt	2025-09-18 17:43:39.576275700 +0800
++++ b/qttools/src/designer/src/lib/CMakeLists.txt	2025-09-19 08:45:29.922821800 +0800
 @@ -13,15 +13,15 @@
          ../../../shared/findwidget/texteditfindwidget.cpp ../../../shared/findwidget/texteditfindwidget.h
          ../../../shared/qtgradienteditor/qtcolorbutton.cpp ../../../shared/qtgradienteditor/qtcolorbutton.h
