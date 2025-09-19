@@ -1,0 +1,22 @@
+name: Test VS Scripts (CMD)
+on:
+  workflow_dispatch:
+
+jobs:
+  test-vs-scripts-cmd:
+    name: Test VS Scripts (CMD)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check VS version
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+
+      - name: setup new vs
+        shell: cmd
+        run: |
+          call "%GITHUB_WORKSPACE%\scripts\window_s\install_vs.cmd" 2019
