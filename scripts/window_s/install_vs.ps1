@@ -24,21 +24,26 @@ param(
 function Uninstall-OldVS {
     Write-Host "--- Searching for existing Visual Studio installations to uninstall ---"
     $vsInstallerPath = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vs_installer.exe"
+    $vswherePath = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 
-    if (Test-Path $vsInstallerPath) {
-        $installations = & "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe" -all -property installationPath
-        foreach ($inst in $installations) {
-            if (Test-Path $inst) {
-                Write-Host "Uninstalling Visual Studio from: $inst"
-                $proc = Start-Process -FilePath $vsInstallerPath -ArgumentList "uninstall --path `"$inst`" --quiet --force --norestart" -Wait -PassThru
-                if ($proc.ExitCode -ne 0) {
-                    Write-Error "Failed to uninstall Visual Studio at $inst. Exit code: $($proc.ExitCode)"
-                    # We can choose to exit here, but for CI it might be better to continue
+    if (Test-Path $vswherePath) {
+        $installations = & $vswherePath -all -property installationPath
+        if ($installations -and (Test-Path $vsInstallerPath)) {
+            foreach ($inst in $installations) {
+                if (Test-Path $inst) {
+                    Write-Host "Uninstalling Visual Studio from: $inst"
+                    $proc = Start-Process -FilePath $vsInstallerPath -ArgumentList "uninstall --path `"$inst`" --quiet --force --norestart" -Wait -PassThru
+                    if ($proc.ExitCode -ne 0) {
+                        Write-Error "Failed to uninstall Visual Studio at $inst. Exit code: $($proc.ExitCode)"
+                        # We can choose to exit here, but for CI it might be better to continue
+                    }
                 }
             }
+        } elseif (-not (Test-Path $vsInstallerPath)) {
+            Write-Host "vs_installer.exe not found. Skipping uninstallation."
         }
     } else {
-        Write-Host "vs_installer.exe not found. Skipping uninstallation."
+        Write-Host "vswhere.exe not found. Skipping uninstallation."
     }
     Write-Host "--- Finished uninstalling old Visual Studio versions ---"
 }
@@ -158,7 +163,34 @@ function Add-VSToPath {
         Add-Content -Path $env:GITHUB_PATH -Value $msBuildPath
     }
 
-    Write-Host "Visual Studio environment has been configured."
+    Write-Output "--- Verifying installation ---"
+$vsWherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+if (Test-Path $vsWherePath) {
+    $vsInstallPath = & $vsWherePath -latest -property installationPath
+    if ($vsInstallPath) {
+        Write-Output "Visual Studio found at: $vsInstallPath"
+        $clPath = Get-ChildItem -Path "$vsInstallPath\VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe" -Recurse | Select-Object -First 1
+        $msbuildPath = "$vsInstallPath\MSBuild\Current\Bin\MSBuild.exe"
+
+        if ($clPath) {
+            Write-Output "Verifying compiler version:"
+            & $clPath.FullName /version
+        }
+
+        if (Test-Path $msbuildPath) {
+            Write-Output "Verifying MSBuild version:"
+            & $msbuildPath -version
+        } else {
+            Write-Output "MSBuild.exe not found."
+        }
+    } else {
+        Write-Output "Visual Studio installation not found."
+    }
+} else {
+    Write-Output "vswhere.exe not found."
+}
+
+Write-Output "Visual Studio environment has been configured."
 }
 
 # Main script execution

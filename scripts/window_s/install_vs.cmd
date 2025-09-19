@@ -13,10 +13,15 @@ REM Uninstall existing VS instances
 echo --- Searching for existing Visual Studio installations to uninstall ---
 if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
     for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -property installationPath`) do (
-        echo Uninstalling Visual Studio from: %%i
-        start "" /wait "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" uninstall --path "%%i" --quiet --force --norestart
-        if !errorlevel! neq 0 (
-            echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !errorlevel!
+        if exist "%%i\..\Installer\vs_installer.exe" (
+            echo Uninstalling Visual Studio from: %%i
+            start "" /wait "%%i\..\Installer\vs_installer.exe" uninstall --path "%%i" --quiet --force --norestart
+            if !errorlevel! neq 0 (
+                echo WARNING: Failed to uninstall Visual Studio at %%i. Exit code: !errorlevel!
+            )
+        ) else (
+             echo Installer not found for instance %%i, trying default path.
+             start "" /wait "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" uninstall --path "%%i" --quiet --force --norestart
         )
     )
 ) else (
@@ -117,6 +122,31 @@ if exist "!COMMON_IDE_PATH!" (
 if exist "!MSBUILD_PATH!" (
     echo Adding to GITHUB_PATH: !MSBUILD_PATH!
     echo !MSBUILD_PATH!>>"%GITHUB_PATH%"
+)
+
+echo --- Verifying installation ---
+for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
+    set VS_INSTALL_PATH=%%i
+)
+
+if defined VS_INSTALL_PATH (
+    echo Visual Studio found at: %VS_INSTALL_PATH%
+    set "CL_PATH=%VS_INSTALL_PATH%\VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe"
+    set "MSBUILD_PATH=%VS_INSTALL_PATH%\MSBuild\Current\Bin\MSBuild.exe"
+
+    for /f "delims=" %%j in ('dir /b /s "%CL_PATH%"') do (
+        echo Verifying compiler version:
+        "%%j" /version
+    )
+
+    if exist "%MSBUILD_PATH%" (
+        echo Verifying MSBuild version:
+        "%MSBUILD_PATH%" -version
+    ) else (
+        echo MSBuild.exe not found.
+    )
+) else (
+    echo Visual Studio installation not found.
 )
 
 echo Visual Studio environment has been configured.
