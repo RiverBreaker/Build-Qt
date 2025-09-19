@@ -1,5 +1,7 @@
 name: Test VS Scripts
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
