@@ -10,30 +10,22 @@ if not defined VS_VERSION set "VS_VERSION=2022"
 echo --- Selected VS Version: %VS_VERSION% ---
 
 REM Uninstall existing VS instances
-echo --- Searching for existing Visual Studio installations to uninstall ---
-set "VS_INSTALLER_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe"
-set "VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+echo --- Searching for and running InstallCleanup.exe ---
+set "INSTALL_CLEANUP_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\InstallCleanup.exe"
 
-if exist "%VSWHERE_PATH%" (
-    if exist "%VS_INSTALLER_PATH%" (
-        for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -all -property instanceId`) do (
-            echo Uninstalling Visual Studio instance: %%i
-            "%VS_INSTALLER_PATH%" uninstall --instanceId "%%i" --quiet --wait --force --norestart
-            set "UNINSTALL_EXIT_CODE=!errorlevel!"
-            if !UNINSTALL_EXIT_CODE! neq 0 (
-                echo WARNING: Failed to uninstall Visual Studio instance %%i. Exit code: !UNINSTALL_EXIT_CODE!
-                if "!UNINSTALL_EXIT_CODE!" equ "3010" (
-                    echo A reboot is required to complete the uninstall.
-                )
-            )
-        )
+if exist "%INSTALL_CLEANUP_PATH%" (
+    echo Found InstallCleanup.exe. Running cleanup...
+    "%INSTALL_CLEANUP_PATH%" -f
+    set "CLEANUP_EXIT_CODE=!errorlevel!"
+    if !CLEANUP_EXIT_CODE! neq 0 (
+        echo WARNING: InstallCleanup.exe finished with exit code: !CLEANUP_EXIT_CODE!
     ) else (
-        echo vs_installer.exe not found at "%VS_INSTALLER_PATH%". Skipping uninstallation.
+        echo InstallCleanup.exe completed successfully.
     )
 ) else (
-    echo vswhere.exe not found. Skipping uninstallation.
+    echo InstallCleanup.exe not found at "%INSTALL_CLEANUP_PATH%". Skipping cleanup.
 )
-echo --- Finished uninstalling old Visual Studio versions ---
+echo --- Finished cleaning up old Visual Studio versions ---
 
 
 REM Define download URLs and components for different VS versions

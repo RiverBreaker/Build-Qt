@@ -6,7 +6,7 @@ on:
 
 jobs:
   test-vs-scripts-cmd:
-    name: Test VS Scripts (CMD)
+    name: Test VS Scripts
     runs-on: windows-latest
     strategy:
       matrix:
