@@ -29,6 +29,7 @@ jobs:
             $installerPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
             # 启动卸载（静默模式，不重启）
+            Write-Host "Uninstalling VS2022..."
             Start-Process -Wait -FilePath $installerPath -ArgumentList "uninstall --installPath `"$vs2022Path`" --quiet --norestart --force"
 
             Write-Host "✅ VS2022 uninstalled."
@@ -45,15 +46,47 @@ jobs:
           mkdir .\vsconfig\
           echo '{"version":"1.0","components":["Microsoft.VisualStudio.Workload.ManagedDesktop","Microsoft.VisualStudio.Workload.NativeDesktop","Microsoft.VisualStudio.Workload.NetWeb","Microsoft.VisualStudio.Workload.Universal","Microsoft.VisualStudio.Workload.VisualStudioExtension","Microsoft.VisualStudio.Component.TestTools.Core","Microsoft.VisualStudio.Component.VC.Tools.x86.x64","Microsoft.NetCore.Component.SDK","Microsoft.Net.Component.4.8.SDK","Microsoft.VisualStudio.Component.NuGet","Microsoft.VisualStudio.Component.Roslyn.Compiler","Microsoft.VisualStudio.Component.Roslyn.LanguageServices","Microsoft.VisualStudio.Component.TextTemplating","Microsoft.VisualStudio.Component.VC.CMake.Project","Microsoft.VisualStudio.Component.VC.ATL","Microsoft.VisualStudio.Component.VC.TestAdapterForBoostTest","Microsoft.VisualStudio.Component.VC.TestAdapterForGoogleTest"]}' > .\vsconfig\vs2019.vsconfig
 
-      - name: Install Visual Studio 2019
-        run: |
-          .\vs_community.exe --quiet --wait --norestart --nocache --config .\vsconfig\vs2019.vsconfig
+      - name: Install Visual Studio 2019 (and wait for completion)
         shell: powershell
-
-      - name: Verify Installation
         run: |
-          $vsWherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          & $vsWherePath -version "[16.0,17.0)" -products * -requires Microsoft.Component.MSBuild -property installationPath
+          Write-Host "Starting VS2019 installation..."
+          $process = Start-Process -FilePath ".\vs_community.exe" `
+            -ArgumentList "--quiet", "--wait", "--norestart", "--nocache", "--config", ".\vsconfig\vs2019.vsconfig" `
+            -PassThru
+
+          Write-Host "Waiting for VS2019 installation to complete (PID: $($process.Id))..."
+          Wait-Process -InputObject $process -Timeout 7200  # 最多等2小时
+
+          if ($process.ExitCode -ne 0) {
+            Write-Error "VS2019 installation failed with exit code $($process.ExitCode)"
+            exit $process.ExitCode
+          }
+
+          Write-Host "✅ VS2019 installation completed successfully."
+
+      - name: Verify VS2019 Installation (with retry)
+        shell: powershell
+        run: |
+          $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $retryCount = 0
+          $maxRetries = 5
+          $vsPath = $null
+
+          while ($retryCount -lt $maxRetries) {
+            $vsPath = & $vsWhere -version "[16.0,17.0)" -products * -requires Microsoft.Component.MSBuild -property installationPath
+            if ($vsPath) {
+              Write-Host "✅ VS2019 found at: $vsPath"
+              break
+            }
+            Write-Host "VS2019 not found, retrying in 10 seconds... ($($retryCount + 1)/$maxRetries)"
+            Start-Sleep -Seconds 10
+            $retryCount++
+          }
+
+          if (-not $vsPath) {
+            Write-Error "VS2019 installation verification failed after $maxRetries retries."
+            exit 1
+          }
 
       # ==================== 设置环境变量 / 启动 Developer Prompt ====================
       - name: Setup VS2019 Developer Environment
