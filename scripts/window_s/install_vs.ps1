@@ -62,16 +62,16 @@ function Install-VS {
     )
 
     switch ($Version) {
-        "2017" { 
+        "2017" {
             $vsBootstrapperUrl = "https://aka.ms/vs/15/release/vs_buildtools.exe"
             # For VS 2017, a specific SDK might be needed depending on the project
             $vsComponents += "Microsoft.VisualStudio.Component.Windows10SDK.17763"
         }
-        "2019" { 
-            $vsBootstrapperUrl = "https://aka.ms/vs/16/release/vs_buildtools.exe" 
+        "2019" {
+            $vsBootstrapperUrl = "https://aka.ms/vs/16/release/vs_buildtools.exe"
         }
-        "2022" { 
-            $vsBootstrapperUrl = "https://aka.ms/vs/17/release/vs_buildtools.exe" 
+        "2022" {
+            $vsBootstrapperUrl = "https://aka.ms/vs/17/release/vs_buildtools.exe"
             $vsComponents += "Microsoft.VisualStudio.Component.Windows11SDK.22000"
         }
         default {
@@ -118,7 +118,7 @@ function Add-VSToPath {
     param(
         [string]$Version
     )
-    
+
     Write-Host "--- Adding Visual Studio to PATH ---"
     $vsWherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (-not (Test-Path $vsWherePath)) {
