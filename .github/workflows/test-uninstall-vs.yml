@@ -110,4 +110,5 @@ jobs:
 
       # ==================== 测试编译 ====================
       - name: Test MSBuild
+        shell: cmd
         run: msbuild /version

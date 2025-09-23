@@ -1,0 +1,179 @@
+name: Build with VS2019 Toolset (v142) in VS2022
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest  # 使用最新镜像，自带 VS2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: new cmake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: '3.29.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+
+      # ==================== 确保 v142 (VS2019) 工具集已安装 ====================
+      - name: Ensure v142 Toolset Installed
+        shell: powershell
+        run: |
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          if (-not $vsPath) {
+            Write-Error "Visual Studio not found!"
+            exit 1
+          }
+
+          # 检查是否已安装 v142 工具集 (版本号 14.29.x)
+          $v142Path = Get-ChildItem "$vsPath\VC\Tools\MSVC\14.29*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $v142Path) {
+            Write-Host "v142 toolset not found, installing..."
+            # 安装 v142 工具集组件（通常几分钟内完成）
+            Start-Process -Wait -FilePath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe" `
+              -ArgumentList "modify", "--installPath `"$vsPath`"", "--add Microsoft.VisualStudio.Component.VC.14.29.x86.x64", "--quiet", "--norestart", "--wait"
+            Write-Host "✅ v142 toolset installed."
+          } else {
+            Write-Host "✅ v142 toolset already installed at: $($v142Path.FullName)"
+          }
+
+      # ==================== 加载 v142 环境变量 ====================
+      - name: Setup v142 (VS2019) Environment
+        id: setup-v142
+        shell: cmd
+        run: |
+          @echo off
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath > vs_path.txt
+          set /p VS_PATH=<vs_path.txt
+          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64 -vcvars_ver=14.29
+
+          :: 导出关键环境变量供后续步骤使用
+          echo COMPILER_VERSION=v142>> %GITHUB_ENV%
+          echo VCINSTALLDIR=%VCINSTALLDIR%>> %GITHUB_ENV%
+          echo INCLUDE=%INCLUDE%>> %GITHUB_ENV%
+          echo LIB=%LIB%>> %GITHUB_ENV%
+
+          :: 输出 PATH 到文件（因为太长不适合 GITHUB_ENV）
+          echo %PATH% > v142_path.txt
+
+          cl /? && echo ✅ v142 environment loaded successfully.
+
+      # ==================== 在后续步骤中恢复 PATH ====================
+      - name: Restore v142 PATH for PowerShell Steps
+        shell: powershell
+        run: |
+          # 从文件中读取并设置 PATH（避免 GITHUB_ENV 截断）
+          $v142Path = Get-Content v142_path.txt
+          $env:PATH = $v142Path
+          [System.Environment]::SetEnvironmentVariable("PATH", $v142Path, [System.EnvironmentVariableTarget]::Process)
+
+          Write-Host "✅ PATH restored for v142 toolset."
+
+      # ==================== 测试编译器和 MSBuild ====================
+      - name: Test Compiler (Should be v142)
+        shell: cmd
+        run: |
+          cl /?
+
+      - name: Test MSBuild
+        shell: cmd
+        run: |
+          msbuild /version
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-windows
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: Install build tools via Chocolatey
+        shell: pwsh
+        run: |
+          choco install -y 7zip llvm gperf `
+            --no-progress `
+            --limit-output
+
+          # 2. 输出各工具安装路径
+          Write-Host ""
+          Write-Host "🔍 Installed tool locations:"
+          $tools = @('cmake', 'ninja', '7z', 'clang', 'gperf')
+          foreach ($t in $tools) {
+            $cmd = Get-Command $t -ErrorAction SilentlyContinue
+            if ($cmd) {
+              Write-Host "  $t -> $($cmd.Source)"
+            } else {
+              Write-Warning "  $t not found in PATH"
+            }
+          }
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+
+      - name: Prepare build directory
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
+
+      - name: Apply patch
+        if: ${{ inputs.qt_majmin }} < '6.2'
+        shell: bash
+        run: |
+          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          ls
+          ls $GITHUB_WORKSPACE/patchs
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
+
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          rem 1. 查找 VS2022 安装路径并加载编译环境
+          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+
+          rem 2. 设置路径
+          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
+          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
+          set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
+
+          rem 3. 清理/创建
+          if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
+          mkdir "%INSTALL_DIR%" 2>nul
+          mkdir "%ARTIFACTS_DIR%" 2>nul
+
+          rem 4. 选择模式
+          if /I "%CONFIG%"=="Debug" (
+            set MODE=-debug
+          ) else if /I "%CONFIG%"=="Release" (
+            set MODE=-release
+          ) else (
+            set MODE=-debug-and-release
+          )
+
+          rem 5. 调用 configure
+          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+            -nomake examples -nomake tests -skip qtwebengine -opensource ^
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
+            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -schannel ^
+            -platform win32-msvc ^
+            -- -Wno-dev
+
+          rem 6. 构建 & 安装
+          cmake --build . --parallel
+          ninja install
