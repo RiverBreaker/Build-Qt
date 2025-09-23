@@ -167,11 +167,19 @@ jobs:
           CONFIG: ${{ matrix.config }}
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
-          if /I %QT_MAJMIN%>=6.5 (
-          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
-          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+          for /f "tokens=1,2 delims=." %%a in ("%QT_MAJMIN%") do (
+              set MAJOR=%%a
+              set MINOR=%%b
+          )
+          if %MAJOR% EQU 6 (
+              if %MINOR% GEQ 5 (
+                  for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+                  call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+              ) else (
+                  call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
+              )
           ) else (
-          call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
+              call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
           )
 
           rem 2. 设置路径
