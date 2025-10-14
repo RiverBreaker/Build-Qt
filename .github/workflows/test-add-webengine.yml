@@ -98,7 +98,7 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y 7zip llvm gperf `
+          choco install -y 7zip llvm gperf winflexbison3 `
             --no-progress `
             --limit-output
           choco install -y openssl --version=3.5.4 --no-progress --limit-output
