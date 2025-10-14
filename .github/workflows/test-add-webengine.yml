@@ -148,7 +148,7 @@ jobs:
           )
           if %MAJOR% EQU 6 (
               if %MINOR% GEQ 5 (
-                  for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
+                  set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
                   call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
               ) else (
                   call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
