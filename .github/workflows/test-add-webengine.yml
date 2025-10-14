@@ -144,14 +144,15 @@ jobs:
           CONFIG: ${{ matrix.config }}
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
-          if ${{ inputs.qt_majmin < '6.2' }} (
+          if ${{ inputs.qt_majmin >= '6.5' }} (
+            echo "Using VS2022"
             set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-            echo Using vsRoot=!vsRoot!
-            if exist "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" (
-              call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
+            echo Using vsRoot=%vsRoot%
+            if exist "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" (
+              call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
             )
           ) else (
-            echo vcvarsall not found at "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat"
+            echo "Using VS2019"
             call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
           )
 
