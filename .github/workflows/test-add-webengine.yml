@@ -6,11 +6,11 @@ on:
       qt_majmin:
         description: 'Qt 主版本号与次版本号(>=6.7.0)'
         required: true
-        default: '6.0'
+        default: '6.8'
       qt_patch:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
-        default: '0'
+        default: '3'
 
 jobs:
   build:
