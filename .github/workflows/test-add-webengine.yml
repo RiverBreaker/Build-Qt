@@ -144,6 +144,8 @@ jobs:
           CONFIG: ${{ matrix.config }}
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
+          setlocal enabledelayedexpansion
+
           if "${{ inputs.qt_majmin >= '6.5' }}" == "true" (
             echo "Using VS2022"
             set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
