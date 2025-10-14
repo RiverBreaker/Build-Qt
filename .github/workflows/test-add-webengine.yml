@@ -47,6 +47,7 @@ jobs:
 
       # ==================== 确保 v142 (VS2019) 工具集已安装 ====================
       - name: Ensure v142 Toolset Installed
+        if: ${{ inputs.qt_majmin <= '6.5' }}
         shell: powershell
         run: |
           $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
@@ -69,6 +70,7 @@ jobs:
 
       # ==================== 加载 v142 环境变量 ====================
       - name: Setup v142 (VS2019) Environment
+        if: ${{ inputs.qt_majmin <= '6.5' }}
         id: setup-v142
         shell: cmd
         run: |
@@ -142,23 +144,14 @@ jobs:
           CONFIG: ${{ matrix.config }}
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
-          for /f "tokens=1,2 delims=." %%a in ("%QT_MAJMIN%") do (
-              set MAJOR=%%a
-              set MINOR=%%b
-          )
-          echo QT_MAJMIN=%QT_MAJMIN% => MAJOR=!MAJOR!, MINOR=!MINOR!
-          if "!MAJOR!"=="6" (
-            if defined MINOR if !MINOR! GEQ 5 (
-              set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-              echo Using vsRoot=!vsRoot!
-              if exist "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" (
-                call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
-              ) else (
-                echo vcvarsall not found at "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat"
-                call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
-              )
+          if ${{ inputs.qt_majmin < '6.2' }} (
+            set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+            echo Using vsRoot=!vsRoot!
+            if exist "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" (
+              call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
             )
           ) else (
+            echo vcvarsall not found at "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat"
             call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
           )
 
