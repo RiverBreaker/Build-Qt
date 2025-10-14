@@ -146,16 +146,23 @@ jobs:
               set MAJOR=%%a
               set MINOR=%%b
           )
-          if %MAJOR% EQU 6 (
-              if %MINOR% GEQ 5 (
-                  set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-                  call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+          echo QT_MAJMIN=%QT_MAJMIN% => MAJOR=!MAJOR!, MINOR=!MINOR!
+          if "!MAJOR!"=="6" (
+            if defined MINOR if !MINOR! GEQ 5 (
+              set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+              echo Using vsRoot=!vsRoot!
+              if exist "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" (
+                call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
               ) else (
-                  call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
+                echo vcvarsall not found at "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat"
+                call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
               )
+            )
           ) else (
-              call %GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd
+            call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
           )
+
+          where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
