@@ -96,7 +96,7 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y 7zip llvm gperf openssl `
+          choco install -y 7zip llvm gperf openssl --version 3.5.4 `
             --no-progress `
             --limit-output
 
@@ -128,7 +128,7 @@ jobs:
           New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
 
       - name: Apply patch
-        if: ${{ inputs.qt_majmin }} < '6.2'
+        if: ${{ inputs.qt_majmin == '6.0' || inputs.qt_majmin == '6.1' }}
         shell: bash
         run: |
           cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
