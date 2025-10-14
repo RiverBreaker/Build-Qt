@@ -147,8 +147,8 @@ jobs:
           if "${{ inputs.qt_majmin >= '6.5' }}" == "true" (
             echo "Using VS2022"
             set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-            echo Using vsRoot=%vsRoot%
-            call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
+            echo Using vsRoot=!vsRoot!
+            call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
           ) else (
             echo "Using VS2019"
             call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
