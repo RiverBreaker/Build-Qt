@@ -1,6 +1,6 @@
 name: Test VS Scripts
 on:
-  workflow_dispatch:
+  [push]
 
 jobs:
   test-vs-scripts-cmd:
@@ -12,20 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check VS version
-        shell: cmd
+      - name: find LLVM
         run: |
-          for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
-          call "%vsRoot%\VC\Auxiliary\Build\vcvarsall.bat" amd64
-
-      - name: setup new vs
-        if: matrix.shell == 'cmd'
-        shell: cmd
-        run: |
-          call "%GITHUB_WORKSPACE%\scripts\window_s\install_vs.cmd" 2019
-
-      # - name: setup new vs
-      #   if: matrix.shell == 'pwsh'
-      #   shell: pwsh
-      #   run: |
-      #     & "${{ github.workspace }}\scripts\window_s\install_vs.ps1" 2019
+          where clang
+          clang --version
