@@ -184,7 +184,7 @@ jobs:
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -DLLVM_INSTALL_DIR="C:/Program Files/LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -DLLVM_INSTALL_DIR="C:\\Program Files\\LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
             -- -Wno-dev
 
@@ -205,4 +205,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: qt-${{ env.QT_VERSION }}-shared-win-msvc2022-${{ matrix.config }}
-          path: "%RUNNER_TEMP%\\artifacts\\qt-${{ env.QT_VERSION }}-shared-win-msvc2022-${{ matrix.config }}.7z"
+          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-shared-win-msvc2022-${{ matrix.config }}.7z
