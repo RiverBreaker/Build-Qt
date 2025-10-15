@@ -99,10 +99,13 @@ jobs:
       - name: Install build tools via Chocolatey
         shell: pwsh
         run: |
-          choco install -y 7zip llvm gperf winflexbison3 `
+          choco install -y 7zip gperf winflexbison3 `
             --no-progress `
             --limit-output
           choco install -y openssl --version=3.5.4 --no-progress --limit-output
+          $clang_zip = Join-Path $env:RUNNER_TEMP clang.7z
+          Invoke-WebRequest $env:LIBCLANG_URL -OutFile $clang_zip
+          7z x $clang_zip -y -o"$env:RUNNER_TEMP/libclang" -mmt=on
 
           # 2. 输出各工具安装路径
           Write-Host ""
@@ -122,11 +125,8 @@ jobs:
         shell: pwsh
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
-          $clang_zip = Join-Path $env:RUNNER_TEMP clang.7z
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          Invoke-WebRequest $env:LIBCLANG_URL -OutFile $clang_zip
           7z x $qt_zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
-          7z x $clang_zip -y -o"$env:RUNNER_TEMP/libclang" -mmt=on
 
       - name: Prepare build directory
         shell: pwsh
