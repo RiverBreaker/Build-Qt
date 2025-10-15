@@ -1,6 +1,7 @@
 name: Install VS2019 on windows-latest
 
-on: [push]
+on:
+  workflow_dispatch:
 
 jobs:
   build:
