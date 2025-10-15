@@ -28,6 +28,7 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+      LIBCLANG_URL: https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-llvmorg-20.1.0-windows-vs2022_64.7z
 
     steps:
       - name: Checkout
@@ -120,9 +121,12 @@ jobs:
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
-          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
-          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+          $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          $clang_zip = Join-Path $env:RUNNER_TEMP clang.7z
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
+          Invoke-WebRequest $env:LIBCLANG_URL -OutFile $clang_zip
+          7z x $qt_zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+          7z x $clang_zip -y -o"$env:RUNNER_TEMP/libclang" -mmt=on
 
       - name: Prepare build directory
         shell: pwsh
@@ -184,7 +188,7 @@ jobs:
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -DLLVM_INSTALL_DIR="C:\\Program Files\\LLVM" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\libclang" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
             -- -Wno-dev
 
