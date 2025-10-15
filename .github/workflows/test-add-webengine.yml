@@ -190,8 +190,12 @@ jobs:
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel -platform win32-msvc ^
             -- ^
-            -DLLVM_INSTALL_DIR="D:\\a\\_temp\\libclang" ^
-            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -DLLVM_INSTALL_DIR="D:/a/_temp/libclang" ^
+            -DClang_DIR="D:/a/_temp/libclang/lib/cmake/clang" ^
+            -DLLVM_DIR="D:/a/_temp/libclang/lib/cmake/llvm" ^
+            -DCMAKE_PREFIX_PATH="D:/a/_temp/libclang" ^
+            -DClang_INCLUDE_DIR="D:/a/_temp/libclang/include" ^
+            -DClang_LIBRARY="D:/a/_temp/libclang/lib/libclang.lib" ^
             -Wno-dev
 
           rem 6. 构建 & 安装
