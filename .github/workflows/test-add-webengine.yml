@@ -196,6 +196,7 @@ jobs:
             -DCMAKE_PREFIX_PATH="D:/a/_temp/libclang" ^
             -DClang_INCLUDE_DIR="D:/a/_temp/libclang/include" ^
             -DClang_LIBRARY="D:/a/_temp/libclang/lib/libclang.lib" ^
+            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -Wno-dev
 
           rem 6. 构建 & 安装
