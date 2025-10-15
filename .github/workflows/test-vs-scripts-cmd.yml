@@ -22,4 +22,5 @@ jobs:
           choco install llvm -y
           where clang
           clang --version
+          tree /f "C:\Program Files\LLVM"
           tree /f "C:\hostedtoolcache\windows\LLVM"
