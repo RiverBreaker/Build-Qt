@@ -17,9 +17,4 @@ jobs:
           where clang
           clang --version
 
-          dir "C:\Program Files\LLVM\lib\cmake\clang\ClangConfig.cmake"
-          dir "C:\hostedtoolcache\windows\LLVM\20.1.8\x64\lib\cmake\clang\ClangConfig.cmake"
-
-          rem 检查 libclang 是否存在
-          dir "C:\Program Files\LLVM\lib\libclang.*"
-          dir "C:\Program Files\LLVM\lib\clang\*"
+          tree /f "C:\Program Files\LLVM"
