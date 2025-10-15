@@ -188,9 +188,11 @@ jobs:
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -DLLVM_INSTALL_DIR="D:\\a\\_temp\\libclang" -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -schannel -platform win32-msvc ^
-            -- -Wno-dev
+            -- ^
+            -DLLVM_INSTALL_DIR="D:\\a\\_temp\\libclang" ^
+            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
+            -Wno-dev
 
           rem 6. 构建 & 安装
           cmake --build . --parallel
