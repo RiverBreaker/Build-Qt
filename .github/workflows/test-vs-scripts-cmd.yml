@@ -16,7 +16,7 @@ jobs:
         run: |
           where clang
           clang --version
-          rem 检查常见的 CMake config 路径是否存在
+
           dir "C:\Program Files\LLVM\lib\cmake\clang\ClangConfig.cmake"
           dir "C:\hostedtoolcache\windows\LLVM\20.1.8\x64\lib\cmake\clang\ClangConfig.cmake"
 
