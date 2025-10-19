@@ -93,7 +93,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-windows
-          path: ${{ runner.temp }}/qt6_src
+          path: ${{ runner.temp }}/qt-everywhere-src-${{ env.QT_VERSION }}
 
       - name: Install build tools via Chocolatey
         shell: pwsh
@@ -119,7 +119,7 @@ jobs:
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          7z x $qt_zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+          7z x $qt_zip -y -o"$env:RUNNER_TEMP" -mmt=on
 
       - name: Prepare build directory
         shell: pwsh
@@ -131,7 +131,7 @@ jobs:
         if: ${{ inputs.qt_majmin == '6.0' || inputs.qt_majmin == '6.1' }}
         shell: bash
         run: |
-          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          cd $RUNNER_TEMP/qt-everywhere-src-$QT_VERSION
           ls $GITHUB_WORKSPACE/patchs
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
 
@@ -156,20 +156,18 @@ jobs:
           where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
-          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
-          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "SRC_QT=%RUNNER_TEMP%\qt-everywhere-src-%QT_VERSION%"
+          set "BI_ROOT=D:\a"
+          set "BUILD_DIR=%BI_ROOT%\build-%CONFIG%"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
           rem 3. 清理/创建
           if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
-          mkdir "%BUILD_DIR%"
+          mkdir "%BI_ROOT%"
+          mkdir "%BUILD_DIR%" && cd "%BUILD_DIR%"
           mkdir "%INSTALL_DIR%" 2>nul
           mkdir "%ARTIFACTS_DIR%" 2>nul
-
-          rem 路径映射
-          subst x: "%SRC_QT%"
-          subst y: "%BUILD_DIR%"
 
           rem 4. 选择模式
           if /I "%CONFIG%"=="Debug" (
@@ -181,8 +179,7 @@ jobs:
           )
 
           rem 5. 调用 configure
-          cd /d y:\
-          call "x:\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
@@ -195,10 +192,6 @@ jobs:
           rem 6. 构建 & 安装
           cmake --build . --parallel
           ninja install
-
-          rem 7. 卸载路径映射
-          subst x: /d
-          subst y: /d
 
       - name: Package ${{ matrix.config }} as zip
         shell: cmd
