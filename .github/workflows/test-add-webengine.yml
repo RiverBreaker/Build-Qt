@@ -163,9 +163,13 @@ jobs:
 
           rem 3. 清理/创建
           if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
-          mkdir "%BUILD_DIR%" && cd /d "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%"
           mkdir "%INSTALL_DIR%" 2>nul
           mkdir "%ARTIFACTS_DIR%" 2>nul
+
+          rem 路径映射
+          subst x: "%SRC_QT%"
+          subst y: "%BUILD_DIR%"
 
           rem 4. 选择模式
           if /I "%CONFIG%"=="Debug" (
@@ -177,11 +181,11 @@ jobs:
           )
 
           rem 5. 调用 configure
-          call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
+          cd /d y:\
+          call "x:\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
-            -skip qtwebengine ^
             -schannel -platform win32-msvc ^
             -- ^
             -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\llvm-%CONFIG%" ^
@@ -191,6 +195,10 @@ jobs:
           rem 6. 构建 & 安装
           cmake --build . --parallel
           ninja install
+
+          rem 7. 卸载路径映射
+          subst x: /d
+          subst y: /d
 
       - name: Package ${{ matrix.config }} as zip
         shell: cmd
