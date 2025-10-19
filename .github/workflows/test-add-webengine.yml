@@ -28,7 +28,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
       QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
-      LIBCLANG_URL: https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-llvmorg-20.1.0-windows-vs2022_64.7z
 
     steps:
       - name: Checkout
@@ -103,22 +102,16 @@ jobs:
             --no-progress `
             --limit-output
           choco install -y openssl --version=3.5.4 --no-progress --limit-output
-          $clang_zip = Join-Path $env:RUNNER_TEMP clang.7z
-          Invoke-WebRequest $env:LIBCLANG_URL -OutFile $clang_zip
-          7z x $clang_zip -y -o"$env:RUNNER_TEMP/libclang" -mmt=on
 
-          # 2. 输出各工具安装路径
-          Write-Host ""
-          Write-Host "🔍 Installed tool locations:"
-          $tools = @('cmake', 'ninja', '7z', 'clang', 'gperf', 'openssl')
-          foreach ($t in $tools) {
-            $cmd = Get-Command $t -ErrorAction SilentlyContinue
-            if ($cmd) {
-              Write-Host "  $t -> $($cmd.Source)"
-            } else {
-              Write-Warning "  $t not found in PATH"
-            }
-          }
+      - name: Download llvm for ${{ matrix.config }}
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          $llvm_url = "https://github.com/RiverBreaker/build-llvm/releases/download/llvm-20.1.0/llvm-20.1.0-win-x86-$env:CONFIG.7z"
+          $llvm_zip = Join-Path $env:RUNNER_TEMP llvm-$env:CONFIG.7z
+          Invoke-WebRequest $llvm_url -OutFile $llvm_zip
+          7z x $llvm_zip -y -o"$env:RUNNER_TEMP/llvm-$env:CONFIG" -mmt=on
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -187,10 +180,11 @@ jobs:
           call "%SRC_QT%\configure.bat" -shared %MODE% -prefix "%INSTALL_DIR%" ^
             -nomake examples -nomake tests ^
             -opensource -confirm-license ^
-            -skip qtwebengine -skip qtdoc ^
             -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel -platform win32-msvc ^
             -- ^
+            -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\llvm-%CONFIG%" ^
+            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -Wno-dev
 
           rem 6. 构建 & 安装
