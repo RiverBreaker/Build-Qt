@@ -129,7 +129,7 @@ jobs:
         shell: bash
         run: |
           cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
-          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-qtwebengine-build-on-windows.patch"
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
