@@ -1,4 +1,4 @@
-name: Build QT Not QtWebEngine
+name: Build QT add QtWebEngine
 
 on:
   workflow_dispatch:
@@ -15,7 +15,6 @@ on:
 jobs:
   build-add-qtwebengine:
     runs-on: windows-latest
-    needs: build-no-qtwebengine
     permissions:
       contents: write
     strategy:
