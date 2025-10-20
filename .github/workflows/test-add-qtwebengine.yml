@@ -176,10 +176,6 @@ jobs:
           rem 5. 调用 configure
           call "%INSTALL_DIR%\bin\qt-configure-module.bat" ^
             %QTWEBENGINE_SRC% ^
-            -shared %MODE% -prefix "%INSTALL_DIR%" ^
-            -nomake examples -nomake tests ^
-            -opensource -confirm-license ^
-            -platform win32-msvc ^
             -- ^
             -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\llvm-%CONFIG%" ^
             -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
@@ -194,8 +190,8 @@ jobs:
           )
 
           rem build & install (ensure --config)
-          cmake --build . --config %CONFIG% --parallel || (echo ERROR: build failed && exit /b 1)
-          cmake --install . --config %CONFIG% --prefix "%INSTALL_DIR%" || (echo ERROR: install failed && exit /b 1)
+          cmake --build . --parallel || (echo ERROR: build failed && exit /b 1)
+          cmake --install . --prefix "%INSTALL_DIR%" || (echo ERROR: install failed && exit /b 1)
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
