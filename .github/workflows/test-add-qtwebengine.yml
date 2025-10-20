@@ -125,10 +125,6 @@ jobs:
             --limit-output
           choco install -y openssl --version=3.5.4 --no-progress --limit-output
 
-          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
-          New-Item -ItemType Directory "$env:RUNNER_TEMP/qt-$env:QT_VERSION" | Out-Null
-
       - name: Apply patch
         shell: bash
         run: |
