@@ -31,28 +31,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: download artifact from other action
+      - name: Download and extract Qt artifact from another workflow run
+        shell: pwsh
         env:
           CONFIG: ${{ matrix.config }}
-          QT_DEBUG_URL: https://productionresultssa2.blob.core.windows.net/actions-results/8d7cb665-c19f-46ec-a385-579713952d9f/workflow-job-run-eeeaef35-d6e2-57c5-9add-c508ea42f755/artifacts/de6aa47d092fe7bfce0c91ee432bdb49a6ad8a324fef0ecad92656b559ad9836.zip?rscd=attachment%3B+filename%3D%22qt-6.8.3-shared-win-msvc2022-Debug.zip%22&se=2025-10-20T10%3A55%3A53Z&sig=gOqJAJCTBdm4YmapEm02Miiw8akygECORoS%2FWq555ys%3D&ske=2025-10-20T21%3A33%3A51Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-10-20T09%3A33%3A51Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-11-05&sp=r&spr=https&sr=b&st=2025-10-20T10%3A45%3A48Z&sv=2025-11-05
-          QT_RELEASE_URL: https://productionresultssa2.blob.core.windows.net/actions-results/8d7cb665-c19f-46ec-a385-579713952d9f/workflow-job-run-4ecee265-39de-5b6f-9527-5eb3874b4558/artifacts/d7c8222f4897ea2aa8197127b634372f134d0a11760cf9c892e06b5ca20007d6.zip?rscd=attachment%3B+filename%3D%22qt-6.8.3-shared-win-msvc2022-Release.zip%22&se=2025-10-20T10%3A57%3A40Z&sig=WFn8pgIgdQ9WSUkSDm7UNijmWUKumOcFJ10%2Bj%2Bqley0%3D&ske=2025-10-20T21%3A34%3A13Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-10-20T09%3A34%3A13Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-11-05&sp=r&spr=https&sr=b&st=2025-10-20T10%3A47%3A35Z&sv=2025-11-05
-          QT_RELWITHDEB_URL: https://productionresultssa2.blob.core.windows.net/actions-results/8d7cb665-c19f-46ec-a385-579713952d9f/workflow-job-run-73e6c851-6d2e-54cb-899c-1db7757153b0/artifacts/9dd60f664afb6b79b5b3dca9f94f3d6172390d01fc54a7db9138af71d4d8475a.zip?rscd=attachment%3B+filename%3D%22qt-6.8.3-shared-win-msvc2022-RelWithDebInfo.zip%22&se=2025-10-20T10%3A57%3A02Z&sig=1t2GojCMKxUIoU6rwavvlXWlvLcMn66o5ZqLJSeI7YQ%3D&ske=2025-10-20T21%3A33%3A40Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-10-20T09%3A33%3A40Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-11-05&sp=r&spr=https&sr=b&st=2025-10-20T10%3A46%3A57Z&sv=2025-11-05
+          QT_VERSION: ${{ env.QT_VERSION }}
+          QT_ID: "18639465120"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $dest = Join-Path $env:RUNNER_TEMP ("qt-" + $env:QT_VERSION)
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
-          $zip = Join-Path $env:RUNNER_TEMP/qt-$env:QT_VERSION qt-$env:QT_VERSION-shared-win-msvc2022-${{ matrix.config }}.zip
-          $qt_in_zip = Join-Path $env:RUNNER_TEMP/qt-$env:QT_VERSION qt-$env:QT_VERSION-shared-win-msvc2022-${{ matrix.config }}.7z
-          $url = switch ($env:CONFIG) {
-            'Debug' { $env:QT_DEBUG_URL }
-            'Release' { $env:QT_RELEASE_URL }
-            'RelWithDebInfo' { $env:QT_RELWITHDEB_URL }
-            default { throw "Unknown CONFIG: $env:CONFIG" }
+
+          # artifact 名称
+          $artifactName = "qt-$($env:QT_VERSION)-shared-win-msvc2022-$($env:CONFIG)"
+          Write-Host "Downloading artifact '$artifactName' from run id $env:QT_ID ..."
+          gh run download $env:QT_ID --name $artifactName --dir $dest
+
+          # 找到下载下来的 ZIP 文件
+          $zip = Get-ChildItem -Path $dest -Filter *.zip | Select-Object -First 1
+          if (-not $zip) {
+            Write-Error "No artifact zip file found in $dest"
+            exit 1
           }
-          Invoke-WebRequest $url -OutFile $zip
-          7z x $zip -y -o"$dest" -mmt=on
-          Remove-Item $zip
-          7z x $qt_in_zip -y -o"$dest" -mmt=on
-          Remove-Item $qt_in_zip
+
+          Write-Host "Extracting $($zip.Name)..."
+          7z x $zip.FullName -y -o"$dest" -mmt=on
+          Remove-Item $zip.FullName
+
+          # 如果 zip 里还有 .7z（两层压缩），再解一次
+          $inner7z = Get-ChildItem -Path $dest -Filter *.7z | Select-Object -First 1
+          if ($inner7z) {
+            Write-Host "Extracting inner archive $($inner7z.Name)..."
+            7z x $inner7z.FullName -y -o"$dest" -mmt=on
+            Remove-Item $inner7z.FullName
+          }
+
+          Write-Host "Extraction done. Listing contents:"
+          Get-ChildItem -Path $dest
 
       - name: new cmake
         uses: lukka/get-cmake@latest
