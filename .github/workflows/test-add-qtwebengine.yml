@@ -47,16 +47,16 @@ jobs:
           Write-Host "Downloading artifact '$artifactName' from run id $env:QT_ID ..."
           gh run download $env:QT_ID --name $artifactName --dir $dest
 
-          # 找到下载下来的 ZIP 文件
-          $zip = Get-ChildItem -Path $dest -Filter *.zip | Select-Object -First 1
-          if (-not $zip) {
-            Write-Error "No artifact zip file found in $dest"
-            exit 1
-          }
+          # # 找到下载下来的 ZIP 文件
+          # $zip = Get-ChildItem -Path $dest -Filter *.zip | Select-Object -First 1
+          # if (-not $zip) {
+          #   Write-Error "No artifact zip file found in $dest"
+          #   exit 1
+          # }
 
-          Write-Host "Extracting $($zip.Name)..."
-          7z x $zip.FullName -y -o"$dest" -mmt=on
-          Remove-Item $zip.FullName
+          # Write-Host "Extracting $($zip.Name)..."
+          # 7z x $zip.FullName -y -o"$dest" -mmt=on
+          # Remove-Item $zip.FullName
 
           # 如果 zip 里还有 .7z（两层压缩），再解一次
           $inner7z = Get-ChildItem -Path $dest -Filter *.7z | Select-Object -First 1
