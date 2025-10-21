@@ -109,7 +109,7 @@ jobs:
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
           7z x $qt_zip -y -o"D:\a" -mmt=on
-          Rename-Item -Path "D:\a\qt-everywhere-src-$(env:QT_VERSION)" -NewName "qt-src"
+          Rename-Item -Path "D:\a\qt-everywhere-src-$env:QT_VERSION" -NewName "qt-src"
 
       - name: Install build tools via Chocolatey
         shell: pwsh
