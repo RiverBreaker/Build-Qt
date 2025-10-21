@@ -1,0 +1,56 @@
+name: test file dir
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号(>=6.7.0)'
+        required: true
+        default: '6.8'
+      qt_patch:
+        description: 'Qt 补丁版本号(例如 0)'
+        required: false
+        default: '3'
+jobs:
+  test-file-dir:
+    runs-on: windows-latest
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-windows
+          path: D:/a/qt-src
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
+          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+
+      - name: test find file
+        shell: pwsh
+        run: |
+          dir D:/a/qt-src/qtwebengine/src/3rdparty/chromium/third_party/blink/renderer/core/
+
+
+
