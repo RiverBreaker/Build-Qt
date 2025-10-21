@@ -125,7 +125,7 @@ jobs:
       - name: Apply patch
         shell: bash
         run: |
-          cd D:\a\qt-src
+          cd "D:/a/qt-src"
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
