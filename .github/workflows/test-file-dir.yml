@@ -43,9 +43,10 @@ jobs:
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $zip = Join-Path $env:RUNNER_TEMP qt6.zip
-          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $zip
-          7z x $zip -y -o"$env:RUNNER_TEMP/qt6_src" -mmt=on
+          $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
+          7z x $qt_zip -y -o"D:\a" -mmt=on
+          Rename-Item -Path "D:\a\qt-everywhere-src-$env:QT_VERSION" -NewName "qt-src"
 
       - name: test find file
         shell: pwsh
