@@ -47,17 +47,6 @@ jobs:
           Write-Host "Downloading artifact '$artifactName' from run id $env:QT_ID ..."
           gh run download $env:QT_ID --name $artifactName --dir $dest
 
-          # # 找到下载下来的 ZIP 文件
-          # $zip = Get-ChildItem -Path $dest -Filter *.zip | Select-Object -First 1
-          # if (-not $zip) {
-          #   Write-Error "No artifact zip file found in $dest"
-          #   exit 1
-          # }
-
-          # Write-Host "Extracting $($zip.Name)..."
-          # 7z x $zip.FullName -y -o"$dest" -mmt=on
-          # Remove-Item $zip.FullName
-
           # 如果 zip 里还有 .7z（两层压缩），再解一次
           $inner7z = Get-ChildItem -Path $dest -Filter *.7z | Select-Object -First 1
           if ($inner7z) {
@@ -81,12 +70,19 @@ jobs:
           architecture: 'x64'
       - run: pip install html5lib
 
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
       - name: Cache Qt source
         id: cache-qt-source
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-windows
-          path: ${{ runner.temp }}/qt6_src/qt-everywhere-src-${{ env.QT_VERSION }}
+          path: D:/a/qt-src
 
       - name: Cache llvm for ${{ matrix.config }}
         id: cache-llvm
@@ -112,7 +108,8 @@ jobs:
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          7z x $qt_zip -y -o"$env:RUNNER_TEMP\qt6_src" -mmt=on
+          7z x $qt_zip -y -o"D:\a" -mmt=on
+          Rename-Item -Path "D:\a\qt-everywhere-src-$(env:QT_VERSION)" -NewName "qt-src"
 
       - name: Install build tools via Chocolatey
         shell: pwsh
@@ -128,7 +125,7 @@ jobs:
       - name: Apply patch
         shell: bash
         run: |
-          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          cd D:\a\qt-src
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
@@ -152,9 +149,9 @@ jobs:
           where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
-          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
+          set "SRC_QT=D:\a\qt-src"
           set "QTWEBENGINE_SRC=%SRC_QT%\qtwebengine"
-          set "BUILD_DIR=D:\a\b"
+          set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
