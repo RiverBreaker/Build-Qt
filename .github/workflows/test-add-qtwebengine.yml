@@ -154,7 +154,7 @@ jobs:
           rem 2. 设置路径
           set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
           set "QTWEBENGINE_SRC=%SRC_QT%\qtwebengine"
-          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "BUILD_DIR=D:\a\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
