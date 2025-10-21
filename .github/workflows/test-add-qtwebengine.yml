@@ -154,6 +154,7 @@ jobs:
           set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
+          mklink /J "%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%" "%SRC_QT%"
 
           rem 3. 清理/创建
           if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
@@ -174,8 +175,6 @@ jobs:
           call "%INSTALL_DIR%\bin\qt-configure-module.bat" ^
             %QTWEBENGINE_SRC% ^
             -- ^
-            -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\llvm-%CONFIG%" ^
-            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -Wno-dev
 
           rem check whether wrapper already created CMake cache/buildsystem
