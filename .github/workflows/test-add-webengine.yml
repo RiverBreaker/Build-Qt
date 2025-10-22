@@ -290,7 +290,7 @@ jobs:
         shell: bash
         run: |
           cd "D:/qs"
-          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-qtwebengine-build-on-windows.patch"
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
