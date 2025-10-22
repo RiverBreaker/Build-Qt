@@ -128,7 +128,8 @@ jobs:
         run: |
           cd "D:/qs"
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
-          powershell -Command "Get-ChildItem -Path 'D:\qs\qtwebengine' -Recurse -File | Move-Item -Destination 'D:\qwe'"
+          powershell -Command "if (Test-Path 'D:\qwe') { Remove-Item -Recurse -Force 'D:\qwe' }"
+          powershell -Command "Move-Item 'D:\qs\qtwebengine' 'D:\qwe'"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
