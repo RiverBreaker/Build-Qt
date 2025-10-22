@@ -126,6 +126,7 @@ jobs:
         shell: bash
         run: |
           cd "D:/qs"
+          ls "D:/qs"
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
           powershell -Command "if (Test-Path 'D:\qwe') { Remove-Item -Recurse -Force 'D:\qwe' }"
           powershell -Command "Move-Item 'D:\qs\qtwebengine' 'D:\qwe'"
