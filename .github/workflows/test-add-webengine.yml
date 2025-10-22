@@ -195,7 +195,7 @@ jobs:
           rem 6. 构建 & 安装
           cmake --build . --parallel
           ninja install
-          
+
       - name: Package ${{ matrix.config }} as zip
         shell: cmd
         env:
@@ -210,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: qt-${{ env.QT_VERSION }}-no-qtwebengine-shared-win-msvc2022-${{ matrix.config }}
-          path: ${{ runner.temp }}/qt-${{ env.QT_VERSION }}/${{ matrix.config }}
+          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-shared-win-msvc2022-${{ matrix.config }}.7z
 
   # build-add-qtwebengine:
   #   runs-on: windows-latest
