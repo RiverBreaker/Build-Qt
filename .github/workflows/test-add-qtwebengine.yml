@@ -36,14 +36,14 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
           QT_VERSION: ${{ env.QT_VERSION }}
-          QT_ID: "18639465120"
+          QT_ID: "18702550892"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $dest = Join-Path $env:RUNNER_TEMP ("qt-" + $env:QT_VERSION)
+          $dest = "D:/"
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
 
           # artifact 名称
-          $artifactName = "qt-$($env:QT_VERSION)-shared-win-msvc2022-$($env:CONFIG)"
+          $artifactName = "qt-$($env:QT_VERSION)-no-qtwebengine-shared-win-msvc2022-$($env:CONFIG)"
           Write-Host "Downloading artifact '$artifactName' from run id $env:QT_ID ..."
           gh run download $env:QT_ID --name $artifactName --dir $dest
 
@@ -110,6 +110,7 @@ jobs:
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
           7z x $qt_zip -y -o"D:\a" -mmt=on
           Rename-Item -Path "D:\a\qt-everywhere-src-$env:QT_VERSION" -NewName "qt-src"
+          Get-ChildItem -Path "D:\a\qt-src\qtwebengine" -Recurse -File | Move-Item -Destination "D:\qwe"
 
       - name: Install build tools via Chocolatey
         shell: pwsh
@@ -150,7 +151,7 @@ jobs:
 
           rem 2. 设置路径
           set "SRC_QT=D:\a\qt-src"
-          set "QTWEBENGINE_SRC=%SRC_QT%\qtwebengine"
+          set "QTWEBENGINE_SRC=D:\qwe"
           set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
@@ -161,15 +162,6 @@ jobs:
           mkdir "%BUILD_DIR%" && cd "%BUILD_DIR%"
           mkdir "%INSTALL_DIR%" 2>nul
           mkdir "%ARTIFACTS_DIR%" 2>nul
-
-          rem 4. 选择模式
-          if /I "%CONFIG%"=="Debug" (
-            set MODE=-debug
-          ) else if /I "%CONFIG%"=="Release" (
-            set MODE=-release
-          ) else (
-            set MODE=-debug-and-release
-          )
 
           rem 5. 调用 configure
           call "%INSTALL_DIR%\bin\qt-configure-module.bat" ^
