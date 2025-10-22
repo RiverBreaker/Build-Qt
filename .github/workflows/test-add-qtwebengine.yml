@@ -36,7 +36,7 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
           QT_VERSION: ${{ env.QT_VERSION }}
-          QT_ID: "18713434011"
+          QT_ID: "18717978014"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $dest = "D:/qin"
