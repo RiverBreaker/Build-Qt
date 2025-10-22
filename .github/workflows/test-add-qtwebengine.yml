@@ -39,7 +39,7 @@ jobs:
           QT_ID: "18702550892"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $dest = "D:/"
+          $dest = "D:/qin"
           New-Item -Path $dest -ItemType Directory -Force | Out-Null
 
           # artifact 名称
@@ -54,7 +54,6 @@ jobs:
             7z x $inner7z.FullName -y -o"$dest" -mmt=on
             Remove-Item $inner7z.FullName
           }
-          ls $dest
 
           Write-Host "Extraction done. Listing contents:"
           Get-ChildItem -Path $dest
@@ -155,9 +154,8 @@ jobs:
           set "SRC_QT=D:\qs"
           set "QTWEBENGINE_SRC=D:\qwe"
           set "BUILD_DIR=D:\b"
-          set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
+          set "INSTALL_DIR=D:\qin"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
-          mklink /J "%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%" "%SRC_QT%"
 
           rem 3. 清理/创建
           if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
