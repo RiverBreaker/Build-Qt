@@ -27,6 +27,7 @@ jobs:
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
       GITHUB_REPOSITORY: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
+      D_ROOT: D:/a
       QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
 
     steps:
@@ -93,7 +94,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-windows
-          path: ${{ runner.temp }}/qt6_src/qt-everywhere-src-${{ env.QT_VERSION }}
+          path: D:/qs
 
       - name: Cache llvm for ${{ matrix.config }}
         id: cache-llvm
@@ -126,19 +127,14 @@ jobs:
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          7z x $qt_zip -y -o"$env:RUNNER_TEMP\qt6_src" -mmt=on
-
-      - name: Prepare build directory
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
+          7z x $qt_zip -y -o"D:/" -mmt=on
+          Rename-Item -Path "D:/qt-everywhere-src-$env:QT_VERSION" -NewName "qs"
 
       - name: Apply patch
         if: ${{ inputs.qt_majmin == '6.0' || inputs.qt_majmin == '6.1' }}
         shell: bash
         run: |
-          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          cd "D:/qs"
           ls $GITHUB_WORKSPACE/patchs
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-low-version-qt-for-Ninja-MSVC-pre-generate-ui-headers.patch"
 
@@ -146,6 +142,7 @@ jobs:
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
+          D_ROOT: D:/a
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
           setlocal enabledelayedexpansion
@@ -163,8 +160,8 @@ jobs:
           where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
-          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
-          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "SRC_QT=D:\qs"
+          set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
@@ -247,7 +244,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-windows
-          path: ${{ runner.temp }}/qt6_src/qt-everywhere-src-${{ env.QT_VERSION }}
+          path: D:/qs
 
       - name: Cache llvm for ${{ matrix.config }}
         id: cache-llvm
@@ -270,10 +267,13 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
+        env:
+          D_ROOT: D:/a
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          7z x $qt_zip -y -o"$env:RUNNER_TEMP\qt6_src" -mmt=on
+          7z x $qt_zip -y -o"D:/" -mmt=on
+          Rename-Item -Path "D:/qt-everywhere-src-$env:QT_VERSION" -NewName "qs"
 
       - name: Install build tools via Chocolatey
         shell: pwsh
@@ -286,14 +286,10 @@ jobs:
             --limit-output
           choco install -y openssl --version=3.5.4 --no-progress --limit-output
 
-          Remove-Item -Recurse -Force "$env:RUNNER_TEMP/build" -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory "$env:RUNNER_TEMP/build" | Out-Null
-          New-Item -ItemType Directory "$env:RUNNER_TEMP/qt-$env:QT_VERSION" | Out-Null
-
       - name: Apply patch
         shell: bash
         run: |
-          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          cd "D:/qs"
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fixed-qtwebengine-build-on-windows.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
@@ -317,9 +313,9 @@ jobs:
           where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
-          set "SRC_QT=%RUNNER_TEMP%\qt6_src\qt-everywhere-src-%QT_VERSION%"
+          set "SRC_QT=D:\qs"
           set "QTWEBENGINE_SRC=%SRC_QT%\qtwebengine"
-          set "BUILD_DIR=%RUNNER_TEMP%\build-%CONFIG%"
+          set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"
           set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
 
@@ -329,25 +325,10 @@ jobs:
           mkdir "%INSTALL_DIR%" 2>nul
           mkdir "%ARTIFACTS_DIR%" 2>nul
 
-          rem 4. 选择模式
-          if /I "%CONFIG%"=="Debug" (
-            set MODE=-debug
-          ) else if /I "%CONFIG%"=="Release" (
-            set MODE=-release
-          ) else (
-            set MODE=-debug-and-release
-          )
-
           rem 5. 调用 configure
           call "%INSTALL_DIR%\bin\qt-configure-module.bat" ^
             %QTWEBENGINE_SRC% ^
-            -shared %MODE% -prefix "%INSTALL_DIR%" ^
-            -nomake examples -nomake tests ^
-            -opensource -confirm-license ^
-            -platform win32-msvc ^
             -- ^
-            -DLLVM_INSTALL_DIR="%RUNNER_TEMP%\llvm-%CONFIG%" ^
-            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON ^
             -Wno-dev
 
           rem check whether wrapper already created CMake cache/buildsystem
@@ -359,8 +340,8 @@ jobs:
           )
 
           rem build & install (ensure --config)
-          cmake --build . --config %CONFIG% --parallel || (echo ERROR: build failed && exit /b 1)
-          cmake --install . --config %CONFIG% --prefix "%INSTALL_DIR%" || (echo ERROR: install failed && exit /b 1)
+          cmake --build . --parallel || (echo ERROR: build failed && exit /b 1)
+          cmake --install . --prefix "%INSTALL_DIR%" || (echo ERROR: install failed && exit /b 1)
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
