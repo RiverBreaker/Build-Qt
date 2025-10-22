@@ -54,6 +54,7 @@ jobs:
             7z x $inner7z.FullName -y -o"$dest" -mmt=on
             Remove-Item $inner7z.FullName
           }
+          ls $dest
 
           Write-Host "Extraction done. Listing contents:"
           Get-ChildItem -Path $dest
@@ -82,7 +83,7 @@ jobs:
         uses: actions/cache@v3
         with:
           key: qt-src-${{ env.QT_VERSION }}-windows
-          path: D:/a/qt-src
+          path: D:/qs
 
       - name: Cache llvm for ${{ matrix.config }}
         id: cache-llvm
@@ -108,9 +109,8 @@ jobs:
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
-          7z x $qt_zip -y -o"D:\a" -mmt=on
-          Rename-Item -Path "D:\a\qt-everywhere-src-$env:QT_VERSION" -NewName "qt-src"
-          Get-ChildItem -Path "D:\a\qt-src\qtwebengine" -Recurse -File | Move-Item -Destination "D:\qwe"
+          7z x $qt_zip -y -o"D:\" -mmt=on
+          Rename-Item -Path "D:\qt-everywhere-src-$env:QT_VERSION" -NewName "qs"
 
       - name: Install build tools via Chocolatey
         shell: pwsh
@@ -126,8 +126,9 @@ jobs:
       - name: Apply patch
         shell: bash
         run: |
-          cd "D:/a/qt-src"
+          cd "D:/qs"
           patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
+          powershell -Command "Get-ChildItem -Path 'D:\qs\qtwebengine' -Recurse -File | Move-Item -Destination 'D:\qwe'"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: cmd
@@ -150,7 +151,7 @@ jobs:
           where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
 
           rem 2. 设置路径
-          set "SRC_QT=D:\a\qt-src"
+          set "SRC_QT=D:\qs"
           set "QTWEBENGINE_SRC=D:\qwe"
           set "BUILD_DIR=D:\b"
           set "INSTALL_DIR=%RUNNER_TEMP%\qt-%QT_VERSION%\%CONFIG%"

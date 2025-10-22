@@ -267,8 +267,6 @@ jobs:
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: pwsh
-        env:
-          D_ROOT: D:/a
         run: |
           $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
           Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
