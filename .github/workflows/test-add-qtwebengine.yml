@@ -171,6 +171,7 @@ jobs:
 
           rem check whether wrapper already created CMake cache/buildsystem
           if exist CMakeCache.txt (
+            findstr /C:"QT_SOURCE_TREE:PATH" CMakeCache.txt
             echo "CMakeCache.txt exists (wrapper likely ran cmake). Skipping explicit cmake configure."
           ) else (
             echo "No CMakeCache.txt found — running explicit cmake configure..."
