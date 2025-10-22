@@ -190,11 +190,11 @@ jobs:
           QT_VERSION: ${{ env.QT_VERSION }}
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
-          7z a "%RUNNER_TEMP%\artifacts\qt-%QT_VERSION%-add-qtwebengine-shared-win-msvc2022-%CONFIG%.7z" ^
+          7z a "%RUNNER_TEMP%\artifacts\qt-%QT_VERSION%-with-qtwebengine-shared-win-msvc2022-%CONFIG%.7z" ^
             "D:\qin\%CONFIG%" -mmt=on
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: qt-${{ env.QT_VERSION }}-with-qtwebengine-shared-win-msvc2022-${{ matrix.config }}
-          path: D:/qin/${{ matrix.config }}
+          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-with-qtwebengine-shared-win-msvc2022-${{ matrix.config }}.7z
