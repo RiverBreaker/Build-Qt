@@ -11,8 +11,8 @@ on:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
-      
-      
+
+
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (Mingw64)
@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       # 安装python
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -154,7 +154,7 @@ jobs:
           ) else if /I "%CONFIG%"=="Release" (
             set MODE=-release
           ) else (
-            set MODE=-debug-and-release
+            set MODE=-release -force-debug-info
           )
 
           rem 5. 调用 configure
@@ -202,7 +202,7 @@ jobs:
             } else {
               # 3. 本地＆远程都不存在时，创建并推送
               git tag "$env:TAG"
-              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
               Write-Host "Tag $TAG created and pushed."
             }
           }

@@ -1,0 +1,200 @@
+name: Build QT add QtWebEngine
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号(>=6.7.0)'
+        required: true
+        default: '6.8'
+      qt_patch:
+        description: 'Qt 补丁版本号(例如 0)'
+        required: false
+        default: '3'
+
+jobs:
+  build-add-qtwebengine:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://download.qt.io/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and extract Qt artifact from another workflow run
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+          QT_VERSION: ${{ env.QT_VERSION }}
+          QT_ID: "18717978014"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $dest = "D:/qin"
+          New-Item -Path $dest -ItemType Directory -Force | Out-Null
+
+          # artifact 名称
+          $artifactName = "qt-$($env:QT_VERSION)-no-qtwebengine-shared-win-msvc2022-$($env:CONFIG)"
+          Write-Host "Downloading artifact '$artifactName' from run id $env:QT_ID ..."
+          gh run download $env:QT_ID --name $artifactName --dir $dest
+
+          # 如果 zip 里还有 .7z（两层压缩），再解一次
+          $inner7z = Get-ChildItem -Path $dest -Filter *.7z | Select-Object -First 1
+          if ($inner7z) {
+            Write-Host "Extracting inner archive $($inner7z.Name)..."
+            7z x $inner7z.FullName -y -o"$dest" -mmt=on
+            Remove-Item $inner7z.FullName
+          }
+
+          Write-Host "Extraction done. Listing contents:"
+          Get-ChildItem -Path $dest
+
+      - name: new cmake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: '3.29.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+      - run: pip install html5lib
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-windows
+          path: D:/qs
+
+      - name: Cache llvm for ${{ matrix.config }}
+        id: cache-llvm
+        uses: actions/cache@v3
+        with:
+          key: llvm-${{ matrix.config }}-windows
+          path: ${{ runner.temp }}/llvm-${{ matrix.config }}
+
+      - name: Download llvm for ${{ matrix.config }}
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          $llvm_url = "https://github.com/RiverBreaker/build-llvm/releases/download/llvm-20.1.0/llvm-20.1.0-win-x86-$env:CONFIG.7z"
+          $llvm_zip = Join-Path $env:RUNNER_TEMP llvm-$env:CONFIG.7z
+          Invoke-WebRequest $llvm_url -OutFile $llvm_zip
+          7z x $llvm_zip -y -o"$env:RUNNER_TEMP/llvm-$env:CONFIG" -mmt=on
+
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $qt_zip = Join-Path $env:RUNNER_TEMP qt6.zip
+          Invoke-WebRequest $env:QT_SOURCE_URL -OutFile $qt_zip
+          7z x $qt_zip -y -o"D:\" -mmt=on
+          Rename-Item -Path "D:\qt-everywhere-src-$env:QT_VERSION" -NewName "qs"
+
+      - name: Install build tools via Chocolatey
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+          QT_VERSION: ${{ env.QT_VERSION }}
+        run: |
+          choco install -y 7zip gperf winflexbison3 `
+            --no-progress `
+            --limit-output
+          choco install -y openssl --version=3.5.4 --no-progress --limit-output
+
+      - name: Apply patch
+        shell: bash
+        run: |
+          cd "D:/qs"
+          ls "D:/qs"
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qtwebengine-build-on-windows.patch"
+          powershell -Command "if (Test-Path 'D:\qwe') { Remove-Item -Recurse -Force 'D:\qwe' }"
+          powershell -Command "Move-Item 'D:\qs\qtwebengine' 'D:\qwe'"
+
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          rem 1. 查找 VS2022 安装路径并加载编译环境
+          setlocal enabledelayedexpansion
+
+          if "${{ inputs.qt_majmin >= '6.5' }}" == "true" (
+            echo "Using VS2022"
+            set "vsRoot=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+            echo Using vsRoot=!vsRoot!
+            call "!vsRoot!\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
+          ) else (
+            echo "Using VS2019"
+            call "%GITHUB_WORKSPACE%\scripts\window_s\vs_setup_v142.cmd" || exit /b 1
+          )
+
+          where cl >nul 2>&1 || (echo ERROR: cl not found in PATH after vcvars && exit /b 1)
+
+          rem 2. 设置路径
+          set "SRC_QT=D:\qs"
+          set "QTWEBENGINE_SRC=D:\qwe"
+          set "BUILD_DIR=D:\b"
+          set "INSTALL_DIR=D:\qin\%CONFIG%"
+          set "ARTIFACTS_DIR=%RUNNER_TEMP%\artifacts"
+
+          rem 3. 清理/创建
+          if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
+          mkdir "%BUILD_DIR%" && cd "%BUILD_DIR%"
+          mkdir "%INSTALL_DIR%" 2>nul
+          mkdir "%ARTIFACTS_DIR%" 2>nul
+
+          rem 5. 调用 configure
+          call "%INSTALL_DIR%\bin\qt-configure-module.bat" ^
+            %QTWEBENGINE_SRC% ^
+            -- ^
+            -Wno-dev
+
+          rem check whether wrapper already created CMake cache/buildsystem
+          if exist CMakeCache.txt (
+            findstr /C:"QT_SOURCE_TREE:PATH" CMakeCache.txt
+            echo "CMakeCache.txt exists (wrapper likely ran cmake). Skipping explicit cmake configure."
+          ) else (
+            echo "No CMakeCache.txt found — running explicit cmake configure..."
+            cmake -S . -B . -Wno-dev || (echo ERROR: cmake configure failed && exit /b 1)
+          )
+
+          rem build & install (ensure --config)
+          cmake --build . --parallel || (echo ERROR: build failed && exit /b 1)
+          cmake --install . --prefix "%INSTALL_DIR%" || (echo ERROR: install failed && exit /b 1)
+
+      - name: Package ${{ matrix.config }} as zip
+        shell: cmd
+        env:
+          CONFIG: ${{ matrix.config }}
+          QT_VERSION: ${{ env.QT_VERSION }}
+        run: |
+          if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
+          7z a "%RUNNER_TEMP%\artifacts\qt-%QT_VERSION%-with-qtwebengine-shared-win-msvc2022-%CONFIG%.7z" ^
+            "D:\qin\%CONFIG%" -mmt=on
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-${{ env.QT_VERSION }}-with-qtwebengine-shared-win-msvc2022-${{ matrix.config }}
+          path: ${{ runner.temp }}/artifacts/qt-${{ env.QT_VERSION }}-with-qtwebengine-shared-win-msvc2022-${{ matrix.config }}.7z

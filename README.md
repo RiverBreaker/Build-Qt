@@ -56,3 +56,9 @@
 ## 📄 许可证
 
 本项目遵循 [MIT License](./LICENSE)。
+
+
+qt-add-module.bat使用示例：
+```shell
+qt-add-module.bat --qt-version < qt_version > --d-fake-dir "< which_dir_will_be_subst_to_D_driver >" --qt-source-dir "< QT_SOURCE_DIR >" --add-module < QtModuleName > --qt-installed-dir "<QT_INSTALLED_DIR>" --install-dir "<QT_MODULE_WILL_INSTALL_DIR>"
+```
