@@ -177,7 +177,7 @@ jobs:
         run: |
           if not exist "%RUNNER_TEMP%\artifacts" mkdir "%RUNNER_TEMP%\artifacts"
           7z a "%RUNNER_TEMP%\artifacts\qt-${{ env.QT_VERSION }}-shared-win-${{ env.MINGW64_VERSION }}-%CONFIG%.7z" ^
-            "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -bsp1
+            "%RUNNER_TEMP%\qt-${{ env.QT_VERSION }}\%CONFIG%" -mmt=on -mx=3
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'

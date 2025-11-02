@@ -82,7 +82,7 @@ jobs:
       - name: 安装构建工具（Linux）
         id: install_build_tools
         run: |
-          source scripts/functions.sh
+          source scripts/sh/functions.sh
           sudo apt-get update
           # 安装指定版本的 GCC/G++ 13 以及其他构建工具
           sudo apt-get -y install gcc-13 g++-13 cmake ninja-build \
