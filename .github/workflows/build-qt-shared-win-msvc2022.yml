@@ -11,7 +11,7 @@ on:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
-      
+
 
 jobs:
   build-qt:
@@ -34,20 +34,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       # 安装python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           architecture: 'x64'
-  
+
       # 安装msvc
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
-  
+
       # 安装vsdevenv
       - name: Setup vsdevenv
         uses: seanmiddleditch/gha-setup-vsdevenv@master
@@ -143,6 +143,44 @@ jobs:
           cmake --build . --parallel
           ninja install
 
+      - name: Copy Licences
+        shell: cmd
+        env:
+          SRC_QT: ${{ runner.temp }}/qt6_src/qt-everywhere-src-${{ env.QT_VERSION }}
+          INSTALL_DIR: ${{ runner.temp }}/qt-${{ env.QT_VERSION }}/${{ matrix.config }}
+        run: |
+          @echo off
+          setlocal enabledelayedexpansion
+
+          :: 创建目标根目录
+          if not exist "%INSTALL_DIR%\licence\qt" mkdir "%INSTALL_DIR%\licence\qt"
+
+          :: 处理当前目录下的LICENCE文件夹
+          if exist "LICENCE\" (
+              echo 处理当前目录下的LICENCE文件夹...
+              if not exist "%INSTALL_DIR%\licence\qt\root_licence" mkdir "%INSTALL_DIR%\licence\qt\root_licence"
+              xcopy /E /I /Y "LICENCE\*" "%INSTALL_DIR%\licence\qt\root_licence\" >nul
+          )
+
+          :: 递归查找并处理子目录下的LICENCE文件夹
+          for /d /r %%d in (*) do (
+              if exist "%%d\LICENCE\" (
+                  :: 获取相对路径（去掉当前目录前缀）
+                  set "fullpath=%%d"
+                  set "relpath=!fullpath:%cd%\=!"
+
+                  :: 创建对应的目标目录
+                  if not exist "%INSTALL_DIR%\licence\qt\!relpath!" mkdir "%INSTALL_DIR%\licence\qt\!relpath!"
+
+                  :: 复制LICENCE文件夹内容
+                  echo 处理 !relpath!\LICENCE...
+                  xcopy /E /I /Y "%%d\LICENCE\*" "%INSTALL_DIR%\licence\qt\!relpath!\" >nul
+              )
+          )
+
+          echo 所有LICENCE文件夹内容已复制到 %INSTALL_DIR%\licence\qt 目录下
+          endlocal
+
       - name: Package ${{ matrix.config }}
         shell: cmd
         env:
@@ -175,7 +213,7 @@ jobs:
             } else {
               # 3. 本地＆远程都不存在时，创建并推送
               git tag "$env:TAG"
-              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
               Write-Host "Tag $TAG created and pushed."
             }
           }
