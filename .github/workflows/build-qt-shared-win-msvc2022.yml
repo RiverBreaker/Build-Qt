@@ -153,32 +153,32 @@ jobs:
           setlocal enabledelayedexpansion
 
           :: 创建目标根目录
-          if not exist "%INSTALL_DIR%\licence\qt" mkdir "%INSTALL_DIR%\licence\qt"
+          if not exist "%INSTALL_DIR%\license\qt" mkdir "%INSTALL_DIR%\license\qt"
 
-          :: 处理当前目录下的LICENCE文件夹
-          if exist "LICENCE\" (
-              echo 处理当前目录下的LICENCE文件夹...
-              if not exist "%INSTALL_DIR%\licence\qt\root_licence" mkdir "%INSTALL_DIR%\licence\qt\root_licence"
-              xcopy /E /I /Y "LICENCE\*" "%INSTALL_DIR%\licence\qt\root_licence\" >nul
+          :: 处理当前目录下的LICENSES文件夹
+          if exist "LICENSES\" (
+              echo 处理当前目录下的LICENSES文件夹...
+              if not exist "%INSTALL_DIR%\license\qt\root_license" mkdir "%INSTALL_DIR%\license\qt\root_license"
+              xcopy /E /I /Y "LICENSES\*" "%INSTALL_DIR%\license\qt\root_license\" >nul
           )
 
-          :: 递归查找并处理子目录下的LICENCE文件夹
+          :: 递归查找并处理子目录下的LICENSES文件夹
           for /d /r %%d in (*) do (
-              if exist "%%d\LICENCE\" (
+              if exist "%%d\LICENSES\" (
                   :: 获取相对路径（去掉当前目录前缀）
                   set "fullpath=%%d"
                   set "relpath=!fullpath:%cd%\=!"
 
                   :: 创建对应的目标目录
-                  if not exist "%INSTALL_DIR%\licence\qt\!relpath!" mkdir "%INSTALL_DIR%\licence\qt\!relpath!"
+                  if not exist "%INSTALL_DIR%\license\qt\!relpath!" mkdir "%INSTALL_DIR%\license\qt\!relpath!"
 
-                  :: 复制LICENCE文件夹内容
-                  echo 处理 !relpath!\LICENCE...
-                  xcopy /E /I /Y "%%d\LICENCE\*" "%INSTALL_DIR%\licence\qt\!relpath!\" >nul
+                  :: 复制LICENSES文件夹内容
+                  echo 处理 !relpath!\LICENSES...
+                  xcopy /E /I /Y "%%d\LICENSES\*" "%INSTALL_DIR%\license\qt\!relpath!\" >nul
               )
           )
 
-          echo 所有LICENCE文件夹内容已复制到 %INSTALL_DIR%\licence\qt 目录下
+          echo 所有LICENSES文件夹内容已复制到 %INSTALL_DIR%\license\qt 目录下
           endlocal
 
       - name: Package ${{ matrix.config }}
