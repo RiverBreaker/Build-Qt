@@ -155,27 +155,50 @@ jobs:
           :: 创建目标根目录
           if not exist "%INSTALL_DIR%\license\qt" mkdir "%INSTALL_DIR%\license\qt"
 
-          :: 处理当前目录下的LICENSES文件夹
-          if exist "LICENSES\" (
-              echo 处理当前目录下的LICENSES文件夹...
-              if not exist "%INSTALL_DIR%\license\qt\root_license" mkdir "%INSTALL_DIR%\license\qt\root_license"
-              xcopy /E /I /Y "LICENSES\*" "%INSTALL_DIR%\license\qt\root_license\" >nul
+          :: 处理源代码根目录下的LICENSES文件夹
+          if exist "%SRC_QT%\LICENSES\" (
+              echo 处理根目录下的LICENSES文件夹...
+              if not exist "%INSTALL_DIR%\license\qt\root" mkdir "%INSTALL_DIR%\license\qt\root"
+              xcopy /E /I /Y "%SRC_QT%\LICENSES\*" "%INSTALL_DIR%\license\qt\root\" >nul
           )
 
           :: 递归查找并处理子目录下的LICENSES文件夹
+          pushd "%SRC_QT%"
           for /d /r %%d in (*) do (
               if exist "%%d\LICENSES\" (
-                  :: 获取相对路径（去掉当前目录前缀）
+                  :: 获取相对于源代码根目录的路径
                   set "fullpath=%%d"
-                  set "relpath=!fullpath:%cd%\=!"
+                  set "relpath=!fullpath:%SRC_QT%\=!"
+
+                  :: 清理路径中的反斜杠
+                  if "!relpath:~0,1!"=="\" set "relpath=!relpath:~1!"
 
                   :: 创建对应的目标目录
-                  if not exist "%INSTALL_DIR%\license\qt\!relpath!" mkdir "%INSTALL_DIR%\license\qt\!relpath!"
-
-                  :: 复制LICENSES文件夹内容
-                  echo 处理 !relpath!\LICENSES...
-                  xcopy /E /I /Y "%%d\LICENSES\*" "%INSTALL_DIR%\license\qt\!relpath!\" >nul
+                  if not "!relpath!"=="" (
+                      if not exist "%INSTALL_DIR%\license\qt\!relpath!" mkdir "%INSTALL_DIR%\license\qt\!relpath!"
+                      echo 处理 !relpath!\LICENSES...
+                      xcopy /E /I /Y "%%d\LICENSES\*" "%INSTALL_DIR%\license\qt\!relpath!\" >nul
+                  ) else (
+                      echo 处理根目录下的LICENSES子目录...
+                      xcopy /E /I /Y "%%d\LICENSES\*" "%INSTALL_DIR%\license\qt\root\" >nul
+                  )
               )
+          )
+          popd
+
+          echo 检查license目录内容：
+          dir /s "%INSTALL_DIR%\license\qt"
+
+          :: 检查是否存在许可证文件
+          if exist "%INSTALL_DIR%\license\qt\root\*.txt" (
+              echo 根目录许可证文件存在
+          ) else (
+              echo 警告：根目录没有找到许可证文件
+          )
+
+          :: 检查是否存在子模块许可证
+          if exist "%INSTALL_DIR%\license\qt\qtbase\*.txt" (
+              echo qtbase许可证文件存在
           )
 
           echo 所有LICENSES文件夹内容已复制到 %INSTALL_DIR%\license\qt 目录下
