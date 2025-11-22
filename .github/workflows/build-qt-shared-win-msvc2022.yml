@@ -144,7 +144,8 @@ jobs:
           ninja install
 
           rem 7. 复制许可证文件
-          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%"
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
       - name: Package ${{ matrix.config }}
         shell: cmd
