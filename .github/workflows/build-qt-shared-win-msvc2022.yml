@@ -104,6 +104,8 @@ jobs:
         shell: cmd
         env:
           CONFIG: ${{ matrix.config }}
+          PYTHONIOENCODING: utf-8
+          LANG: C.UTF-8
         run: |
           rem 1. 查找 VS2022 安装路径并加载编译环境
           for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vsRoot=%%V"
