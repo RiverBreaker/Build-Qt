@@ -33,20 +33,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       # 安装 Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           architecture: 'x64'
-  
+
       # 安装 MSBuild
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
-  
+
       # 安装 vsdevenv
       - name: Setup vsdevenv
         uses: seanmiddleditch/gha-setup-vsdevenv@master
@@ -142,6 +142,10 @@ jobs:
           cmake --build . --parallel
           ninja install
 
+          rem 7. 复制许可证文件
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
+
       - name: Package ${{ matrix.config }}
         shell: pwsh
         env:
@@ -200,7 +204,7 @@ jobs:
             } else {
               # 3. 本地＆远程都不存在时，创建并推送
               git tag "$env:TAG"
-              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
               Write-Host "Tag $TAG created and pushed."
             }
           }

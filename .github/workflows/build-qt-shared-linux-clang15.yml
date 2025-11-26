@@ -15,7 +15,7 @@ on:
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Linux(Clang15)
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
@@ -126,6 +126,10 @@ jobs:
 
           cmake --build . --parallel 2
           cmake --install .
+
+          rem 7. 复制许可证文件
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |

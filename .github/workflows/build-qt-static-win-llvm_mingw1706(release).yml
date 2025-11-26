@@ -11,7 +11,7 @@ on:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
-            
+
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for Windows (Mingw64)
@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       # 安装python
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -163,10 +163,14 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype ^
             -schannel ^
             -- -Wno-dev
-            
+
           rem 6. 构建 & 安装
           cmake --build . --parallel
           ninja install
+
+          rem 7. 复制许可证文件
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
       - name: Package ${{ matrix.config }}
         shell: pwsh
@@ -227,7 +231,7 @@ jobs:
             } else {
               # 3. 本地＆远程都不存在时，创建并推送
               git tag "$env:TAG"
-              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"  
+              git push "https://x-access-token:$env:PAT_TOKEN@github.com/$env:REPO" "$env:TAG"
               Write-Host "Tag $TAG created and pushed."
             }
           }

@@ -11,7 +11,7 @@ on:
         description: 'Qt 补丁版本号(例如 0)'
         required: false
         default: '0'
-      
+
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for macOS
@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -65,13 +65,13 @@ jobs:
             which $tool || echo "$tool not found in PATH"
           done
           clang --version
-          
+
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
         shell: bash
         run: |
           ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
-          TARGET_DIR="$RUNNER_TEMP/qt6_src" 
+          TARGET_DIR="$RUNNER_TEMP/qt6_src"
           echo "📦 Downloading Qt source archive..."
           curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
           echo "📂 Extracting .tar.xz via tar..."
@@ -119,6 +119,10 @@ jobs:
           # 构建并安装
           cmake --build . --parallel
           cmake --install .
+
+          rem 7. 复制许可证文件
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
       - name: Package ${{ matrix.config }} as tar.gz
         shell: bash

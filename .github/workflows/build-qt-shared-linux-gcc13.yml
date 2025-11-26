@@ -44,7 +44,7 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Redirect Runner logs / temp / cache to build volume
         shell: bash
         run: |
@@ -90,7 +90,7 @@ jobs:
            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
            libx11-dev libxext-dev libxcb1-dev \
            protobuf-compiler libprotobuf-dev
-          
+
           install_ver_pkgs llvm-dev libclang-dev clang lld
           echo "🔍 工具位置："
           for tool in gcc-13 g++-13 cmake ninja openssl protoc; do which $tool || echo "$tool 未找到"; done
@@ -148,15 +148,13 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -- -Wno-dev
-          echo "Disk usage after actions:"
-          df -h || true
 
           cmake --build . --parallel 2
-          echo "Disk usage after actions:"
-          df -h || true
           cmake --install .
-          echo "Disk usage after actions:"
-          df -h || true
+
+          rem 7. 复制许可证文件
+          mkdir -p "%INSTALL_DIR%\licenses"
+          python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
       - name: Package ${{ matrix.config }} as tar.gz
         run: |
