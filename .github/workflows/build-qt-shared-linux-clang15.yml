@@ -119,9 +119,7 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql \
-            -- -DCMAKE_C_COMPILER="/opt/homebrew/opt/llvm@15/bin/clang" \
-            -DCMAKE_CXX_COMPILER="/opt/homebrew/opt/llvm@15/bin/clang++" \
-            -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@15" \
+            -- -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_CXX_FLAGS="-ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" \
             -Wl,-fuse-ld=lld -Wno-dev
