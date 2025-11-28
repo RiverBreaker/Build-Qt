@@ -15,7 +15,7 @@ on:
 jobs:
   build-qt:
     name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for macOS
-    runs-on: macos-latest
+    runs-on: macos-14
     permissions:
       contents: write
 
