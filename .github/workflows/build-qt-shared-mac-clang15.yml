@@ -61,33 +61,6 @@ jobs:
             fi
           done
 
-          echo "⚙️ Installing LLVM 15 (Clang 15)..."
-          # 检查 llvm@15 是否可用
-          if brew formulae | grep -q "llvm@15"; then
-            brew install llvm@15
-          else
-            echo "❌ llvm@15 not available in Homebrew formulae!"
-            echo "💡 Try: brew tap homebrew/cask-versions && brew install llvm@15"
-            exit 1
-          fi
-
-          # 🌟 关键：设置 macOS 专属优先级
-          LLVM15_PATH=$(brew --prefix llvm@15)
-
-          # 2. 永久生效（仅限当前用户，绕过 SIP 限制）
-          echo "💾 Configuring permanent PATH priority in ~/.zshrc..."
-          cat >> ~/.zshrc <<EOF
-
-          # 🔥 Custom Clang 15 priority settings (added by build script)
-          export PATH="$LLVM15_PATH/bin:\$PATH"
-          export LDFLAGS="-L$LLVM15_PATH/lib \$LDFLAGS"
-          export CPPFLAGS="-I$LLVM15_PATH/include \$CPPFLAGS"
-          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          EOF
-
-          # 3. 立即加载新配置
-          source ~/.zshrc
-
           echo "🔍 Verifying tool locations with priority:"
           for tool in clang clang++ cmake ninja; do
             echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
@@ -146,9 +119,6 @@ jobs:
             -nomake examples -nomake tests -skip qtwebengine -opensource \
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework -- \
-            -DCMAKE_C_COMPILER="/opt/homebrew/opt/llvm@15/bin/clang" \
-            -DCMAKE_CXX_COMPILER="/opt/homebrew/opt/llvm@15/bin/clang++" \
-            -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@15" \
             -Wno-dev
           # 构建并安装
           cmake --build . --parallel
