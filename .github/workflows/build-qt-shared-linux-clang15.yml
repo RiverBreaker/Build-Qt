@@ -127,7 +127,7 @@ jobs:
           cmake --build . --parallel 2
           cmake --install .
 
-          rem 7. 复制许可证文件
+          # 7. 复制许可证文件
           mkdir -p "%INSTALL_DIR%\licenses"
           python "%GITHUB_WORKSPACE%/copy_license.py" "%SRC_QT%" "%INSTALL_DIR%\licenses"
 
