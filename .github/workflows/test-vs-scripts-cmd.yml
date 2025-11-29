@@ -1,25 +1,28 @@
-name: Test VS Scripts
+name: Test xcode version and clang version
 on:
   [push]
 
 jobs:
   test-vs-scripts-cmd:
     name: Test VS Scripts
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        shell: [cmd]
+    runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: find LLVM
+      - name: select xcode version and check clang version
         run: |
           where clang
           clang --version
 
-          tree /f "C:\Program Files\LLVM"
-
-          choco install llvm --force -y
+          xcode-select -s /Applications/Xcode_14.2.app/Contents/Developer || { echo "Failed to switch to Xcode 14.2"; exit 0; }
+          echo "Switched to Xcode 14.2"
           where clang
           clang --version
-          tree /f "C:\Program Files\LLVM"
+
+          xcode-select -s /Applications/Xcode_15.app/Contents/Developer || { echo "Failed to switch to Xcode 15"; exit 0; }
+          echo "Switched to Xcode 15"
+          where clang
+          clang --version
+
+          ls /Applications | grep Xcode
