@@ -26,8 +26,10 @@ jobs:
           clang --version
 
           ls /Applications | grep Xcode
-          wget https://download.developer.apple.com/Developer_Tools/Xcode_14.3.1/Xcode_14.3.1.xip
-          ls
-          xattr -d com.apple.quarantine Xcode_14.3.1.xip
-          xip -x Xcode_14.3.1.xip
-          ls
+          # 安装xcodes工具
+          brew install xcodesorg/made/xcodes
+
+          # 安装Xcode（会自动处理认证）
+          xcodes install 14.3.1 --no-install
+          xcodes install 14.3.1
+          ls /Applications | grep Xcode
