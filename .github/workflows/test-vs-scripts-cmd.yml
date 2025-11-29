@@ -1,35 +1,159 @@
-name: Test xcode version and clang version
+name: Build Qt 6.x.x -shared for macOS (Clang15)
+
 on:
-  [push]
+  workflow_dispatch:
+    inputs:
+      qt_majmin:
+        description: 'Qt 主版本号与次版本号(>=6.7.0)'
+        required: true
+        default: '6.7'
+      qt_patch:
+        description: 'Qt 补丁版本号(例如 0)'
+        required: false
+        default: '0'
 
 jobs:
-  test-vs-scripts-cmd:
-    name: Test VS Scripts
-    runs-on: macos-latest
+  build-qt:
+    name: Build Qt ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }} – ${{ matrix.config }} for macOS
+    runs-on: macos-14
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    env:
+      QT_MAJMIN: ${{ inputs.qt_majmin }}
+      QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
+      TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      QT_SOURCE_URL: https://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/${{ inputs.qt_majmin }}/${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}/single/qt-everywhere-src-${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}.tar.xz
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: select xcode version and check clang version
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x64'
+
+      - name: Cache Qt source
+        id: cache-qt-source
+        uses: actions/cache@v3
+        with:
+          key: qt-src-${{ env.QT_VERSION }}-Unix
+          path: ${{ runner.temp }}/qt6_src
+
+      - name: Install build tools via Homebrew
+        shell: bash
         run: |
-          which clang
+          echo "🔧 Installing build tools via Homebrew..."
+          brew update
+          for tool in cmake ninja openssl gperf; do
+            if brew list --formula "$tool" &>/dev/null; then
+              echo "⚠️  $tool already installed, skipping..."
+            else
+              echo "📦 Installing $tool..."
+              brew install "$tool"
+            fi
+          done
+
+          if brew list --formula "clang@15" &>/dev/null; then
+              echo "⚠️  clang@15 already installed, skipping..."
+            else
+              echo "📦 Installing clang@15..."
+              brew install "clang@15"
+            fi
+
+          echo "🔍 Verifying tool locations with priority:"
+          for tool in clang clang++ cmake ninja; do
+            echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
+          done
+
+          echo "✅ Final Clang version (MUST show 15.x):"
           clang --version
 
-          xcode-select -s /Applications/Xcode_14.2.app/Contents/Developer || { echo "Failed to switch to Xcode 14.2"; }
-          echo "Switched to Xcode 14.2"
-          which clang
-          clang --version
+      - name: Download & extract Qt
+        if: steps.cache-qt-source.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ARCHIVE="$RUNNER_TEMP/qt6.tar.xz"
+          TARGET_DIR="$RUNNER_TEMP/qt6_src"
+          echo "📦 Downloading Qt source archive..."
+          curl -L -o "$ARCHIVE" "$QT_SOURCE_URL"
+          echo "📂 Extracting .tar.xz via tar..."
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
+          # -x: extract; -J: .xz; -f: file; -C: target dir
+          tar -xJf "$ARCHIVE" -C "$TARGET_DIR"
+          echo "✅ Extraction complete: $TARGET_DIR"
 
-          xcode-select -s /Applications/Xcode_15.app/Contents/Developer || { echo "Failed to switch to Xcode 15"; }
-          echo "Switched to Xcode 15"
-          which clang
-          clang --version
+      - name: Prepare build directory
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/build"
+          mkdir -p "$RUNNER_TEMP/build"
 
-          ls /Applications | grep Xcode
-          # 安装xcodes工具
-          brew uninstall xcodes || true
-          brew install xcodesorg/made/xcodes
+      - name: Configure & build & install ${{ matrix.config }}
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          SRC_QT="$RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION"
+          BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
+          INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
+          ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          SDKROOT="/Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk"
 
-          # 安装Xcode（会自动处理认证）
-          xcodes install 14.3.1
-          ls /Applications | grep Xcode
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
+          mkdir -p "$INSTALL_DIR"
+          mkdir -p "$ARTIFACTS_DIR"
+
+          # 选择模式
+          if [[ "$CONFIG" == "Debug" ]]; then
+            MODE="-debug"
+          elif [[ "$CONFIG" == "Release" ]]; then
+            MODE="-release"
+          else
+            MODE="-release -force-debug-info"
+          fi
+
+          # 调用 configure
+          "$SRC_QT/configure" -shared $MODE -prefix "$INSTALL_DIR" \
+            -nomake examples -nomake tests -skip qtwebengine -opensource \
+            -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
+            -no-sql-psql -no-framework -platform macx-clang \
+            -- \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.5 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
+            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
+            -Wno-dev
+          # 构建并安装
+          cmake --build . --parallel
+          cmake --install .
+
+          # 7. 复制许可证文件
+          mkdir -p "$INSTALL_DIR/licenses"
+          python "$GITHUB_WORKSPACE/copy_license.py" "$SRC_QT" "$INSTALL_DIR/licenses"
+
+      - name: Package ${{ matrix.config }} as tar.gz
+        shell: bash
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
+          echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
+          ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
+          echo "📦 Packaging $CONFIG into $ASSET via tar..."
+          # 切换到包含 CONFIG 子目录的父目录
+          cd "$RUNNER_TEMP/qt-${QT_VERSION}"
+          # -c: create, -z: gzip, -f: filename, -C: change dir
+          tar -czf "$RUNNER_TEMP/artifacts/$ASSET" -C . "$CONFIG"
+          echo "✅ Packaged artifact: $RUNNER_TEMP/artifacts/$ASSET"
