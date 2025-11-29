@@ -28,3 +28,5 @@ jobs:
           ls /Applications | grep Xcode
           wget https://download.developer.apple.com/Developer_Tools/Xcode_14.3.1/Xcode_14.3.1.xip
           ls
+          xip -x Xcode_14.3.1.xip
+          ls 
