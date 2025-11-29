@@ -31,6 +31,5 @@ jobs:
           brew install xcodesorg/made/xcodes
 
           # 安装Xcode（会自动处理认证）
-          xcodes install 14.3.1 --no-install
           xcodes install 14.3.1
           ls /Applications | grep Xcode
