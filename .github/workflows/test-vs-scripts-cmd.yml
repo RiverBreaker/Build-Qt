@@ -109,6 +109,9 @@ jobs:
           BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
           INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
           ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+
+          xcrun --show-sdk-path --sdk macosx
+          xcrun --show-sdk-version --sdk macosx
           # 设置环境变量强制 SDK 选择
           export SDKROOT=$(xcrun --sdk macosx14.5 --show-sdk-path)
           export DEVELOPER_DIR=$(xcode-select -p)  # 保持当前开发者目录
