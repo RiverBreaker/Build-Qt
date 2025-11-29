@@ -75,6 +75,7 @@ jobs:
           ls /Library/Developer/CommandLineTools/SDKs/
           echo "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
           ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
+          ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # # download MacOSX14
           # SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
           # curl -L -o "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" "$SDK_URL"
@@ -115,11 +116,11 @@ jobs:
           xcrun --show-sdk-path --sdk macosx
           xcrun --show-sdk-version --sdk macosx
           # 设置环境变量强制 SDK 选择
-          export SDKROOT=$(xcrun --sdk macosx14 --show-sdk-path)
+          export SDKROOT=$(xcrun --sdk macosx14.5 --show-sdk-path)
           export DEVELOPER_DIR=$(xcode-select -p)  # 保持当前开发者目录
 
           # 验证 SDK 版本
-          echo "使用 SDK 版本: $(xcrun --sdk macosx14 --show-sdk-version)"
+          echo "使用 SDK 版本: $(xcrun --sdk macosx14.5 --show-sdk-version)"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
