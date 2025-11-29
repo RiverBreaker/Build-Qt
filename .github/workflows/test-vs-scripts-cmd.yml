@@ -47,3 +47,4 @@ jobs:
           clang --version
 
           ls /Applications | grep Xcode
+          find /Library -type d
