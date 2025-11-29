@@ -73,6 +73,7 @@ jobs:
             echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
           done
           ls /Library/Developer/CommandLineTools/SDKs/
+          echo "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
           ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # # download MacOSX14
           # SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
