@@ -61,11 +61,11 @@ jobs:
             fi
           done
 
-          if brew list --formula "clang@15" &>/dev/null; then
-              echo "⚠️  clang@15 already installed, skipping..."
+          if brew list --formula "llvm@15" &>/dev/null; then
+              echo "⚠️  llvm@15 already installed, skipping..."
             else
-              echo "📦 Installing clang@15..."
-              brew install "clang@15"
+              echo "📦 Installing llvm@15..."
+              brew install "llvm@15"
             fi
 
           echo "🔍 Verifying tool locations with priority:"
