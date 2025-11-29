@@ -27,6 +27,7 @@ jobs:
 
           ls /Applications | grep Xcode
           # 安装xcodes工具
+          brew uninstall xcodes || true
           brew install xcodesorg/made/xcodes
 
           # 安装Xcode（会自动处理认证）
