@@ -15,12 +15,12 @@ jobs:
           which clang
           clang --version
 
-          xcode-select -s /Applications/Xcode_14.2.app/Contents/Developer || { echo "Failed to switch to Xcode 14.2"; exit 0; }
+          xcode-select -s /Applications/Xcode_14.2.app/Contents/Developer || { echo "Failed to switch to Xcode 14.2"; }
           echo "Switched to Xcode 14.2"
           which clang
           clang --version
 
-          xcode-select -s /Applications/Xcode_15.app/Contents/Developer || { echo "Failed to switch to Xcode 15"; exit 0; }
+          xcode-select -s /Applications/Xcode_15.app/Contents/Developer || { echo "Failed to switch to Xcode 15"; }
           echo "Switched to Xcode 15"
           which clang
           clang --version
