@@ -74,9 +74,9 @@ jobs:
           done
           ls /Library/Developer/CommandLineTools/SDKs/
           # download MacOSX14
-          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.0/MacOSX14.0.sdk.tar.xz"
-          curl -L -o "$RUNNER_TEMP/MacOSX14.0.sdk.tar.xz" "$SDK_URL"
-          sudo tar -xJf "$RUNNER_TEMP/MacOSX14.0.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
+          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
+          curl -L -o "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" "$SDK_URL"
+          sudo tar -xJf "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
           ls /Library/Developer/CommandLineTools/SDKs/
 
       - name: Download & extract Qt
@@ -109,7 +109,12 @@ jobs:
           BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
           INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
           ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
-          SDKROOT="/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk"
+          # 设置环境变量强制 SDK 选择
+          export SDKROOT=$(xcrun --sdk macosx14.5 --show-sdk-path)
+          export DEVELOPER_DIR=$(xcode-select -p)  # 保持当前开发者目录
+
+          # 验证 SDK 版本
+          echo "使用 SDK 版本: $(xcrun --sdk macosx14.5 --show-sdk-version)"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -131,7 +136,7 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework -platform macx-clang \
             -- \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.5 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
             -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
