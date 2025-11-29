@@ -26,3 +26,24 @@ jobs:
           clang --version
 
           ls /Applications | grep Xcode
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '14.2'
+
+      - name: select xcode version and check clang version
+        run: |
+          which clang
+          clang --version
+
+          xcode-select -s /Applications/Xcode_14.2.app/Contents/Developer || { echo "Failed to switch to Xcode 14.2"; }
+          echo "Switched to Xcode 14.2"
+          which clang
+          clang --version
+
+          xcode-select -s /Applications/Xcode_15.app/Contents/Developer || { echo "Failed to switch to Xcode 15"; }
+          echo "Switched to Xcode 15"
+          which clang
+          clang --version
+
+          ls /Applications | grep Xcode
