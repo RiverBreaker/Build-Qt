@@ -73,11 +73,11 @@ jobs:
             echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
           done
           ls /Library/Developer/CommandLineTools/SDKs/
-          # download MacOSX14
-          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
-          curl -L -o "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" "$SDK_URL"
-          sudo tar -xJf "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
-          ls /Library/Developer/CommandLineTools/SDKs/
+          # # download MacOSX14
+          # SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
+          # curl -L -o "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" "$SDK_URL"
+          # sudo tar -xJf "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
+          # ls /Library/Developer/CommandLineTools/SDKs/
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
