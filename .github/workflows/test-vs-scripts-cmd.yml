@@ -23,8 +23,8 @@ jobs:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
     env:
-      MACOSX_VERSION: 14.0
-      LLVM_VERSION: 16
+      MACOSX_VERSION: "14.0"
+      LLVM_VERSION: "16"
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
