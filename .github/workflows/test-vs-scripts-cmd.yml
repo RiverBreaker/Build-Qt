@@ -23,6 +23,8 @@ jobs:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
     env:
+      MACOSX_VERSION: 14.0
+      LLVM_VERSION: 16
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
@@ -60,20 +62,20 @@ jobs:
               brew install "$tool"
             fi
           done
-
-          if brew list --formula "llvm@15" &>/dev/null; then
-              echo "⚠️  llvm@15 already installed, skipping..."
+          LLVM_VERSION=${{ env.LLVM_VERSION }}
+          if brew list --formula "llvm@${LLVM_VERSION}" &>/dev/null; then
+              echo "⚠️  llvm@${LLVM_VERSION} already installed, skipping..."
             else
-              echo "📦 Installing llvm@15..."
-              brew install "llvm@15"
+              echo "📦 Installing llvm@${LLVM_VERSION}..."
+              brew install "llvm@${LLVM_VERSION}"
             fi
 
           echo "🔍 Verifying tool locations with priority:"
           for tool in clang clang++ cmake ninja; do
             echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
           done
-          
-          MACOSX_VERSION=14.0
+
+          MACOSX_VERSION=${{ env.MACOSX_VERSION }}
 
           ls /Library/Developer/CommandLineTools/SDKs/
           echo "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
@@ -118,7 +120,8 @@ jobs:
           BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
           INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
           ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
-          MACOSX_VERSION=14.0
+          MACOSX_VERSION=${{ env.MACOSX_VERSION }}
+          LLVM_VERSION=${{ env.LLVM_VERSION }}
 
           xcrun --show-sdk-path --sdk macosx
           xcrun --show-sdk-version --sdk macosx
@@ -151,8 +154,8 @@ jobs:
             -- \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_VERSION \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
-            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
+            -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang \
+            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang++ \
             -Wno-dev
           # 构建并安装
           cmake --build . --parallel
@@ -166,9 +169,10 @@ jobs:
         shell: bash
         env:
           CONFIG: ${{ matrix.config }}
+          LLVM_VERSION: ${{ env.LLVM_VERSION }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifacts"
-          CLANG_FULL=$(/opt/homebrew/opt/llvm@15/bin/clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_FULL=$(/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
