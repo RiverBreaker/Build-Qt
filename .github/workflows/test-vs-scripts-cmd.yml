@@ -72,16 +72,19 @@ jobs:
           for tool in clang clang++ cmake ninja; do
             echo "📍 $(which $tool) → $(basename $(dirname $(which $tool)))"
           done
+          
+          MACOSX_VERSION=14.0
+
           ls /Library/Developer/CommandLineTools/SDKs/
           echo "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
           ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # # download MacOSX14
-          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.0/MacOSX14.0.sdk.tar.xz"
-          curl -L -o "$RUNNER_TEMP/MacOSX14.0.sdk.tar.xz" "$SDK_URL"
-          sudo tar -xJf "$RUNNER_TEMP/MacOSX14.0.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
-          ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
+          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/$MACOSX_VERSION/MacOSX$MACOSX_VERSION.sdk.tar.xz"
+          curl -L -o "$RUNNER_TEMP/MacOSX$MACOSX_VERSION.sdk.tar.xz" "$SDK_URL"
+          sudo tar -xJf "$RUNNER_TEMP/MacOSX$MACOSX_VERSION.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
+          ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX$MACOSX_VERSION.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # ls /Library/Developer/CommandLineTools/SDKs/
           ls /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
 
@@ -115,15 +118,16 @@ jobs:
           BUILD_DIR="$RUNNER_TEMP/build-${CONFIG}"
           INSTALL_DIR="$RUNNER_TEMP/qt-$QT_VERSION/$CONFIG"
           ARTIFACTS_DIR="$RUNNER_TEMP/artifacts"
+          MACOSX_VERSION=14.0
 
           xcrun --show-sdk-path --sdk macosx
           xcrun --show-sdk-version --sdk macosx
           # 设置环境变量强制 SDK 选择
-          export SDKROOT=$(xcrun --sdk macosx14.0 --show-sdk-path)
+          export SDKROOT=$(xcrun --sdk macosx$MACOSX_VERSION --show-sdk-path)
           export DEVELOPER_DIR=$(xcode-select -p)  # 保持当前开发者目录
 
           # 验证 SDK 版本
-          echo "使用 SDK 版本: $(xcrun --sdk macosx14.0 --show-sdk-version)"
+          echo "使用 SDK 版本: $(xcrun --sdk macosx$MACOSX_VERSION --show-sdk-version)"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -145,7 +149,7 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework -platform macx-clang \
             -- \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_VERSION \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
             -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
