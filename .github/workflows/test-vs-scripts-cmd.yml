@@ -23,8 +23,8 @@ jobs:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
     env:
-      MACOSX_VERSION: "14.0"
-      LLVM_VERSION: "17"
+      MACOSX_VERSION: "11.0"
+      LLVM_VERSION: "15"
       QT_MAJMIN: ${{ inputs.qt_majmin }}
       QT_VERSION: ${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}
       TAG: v${{ inputs.qt_majmin }}.${{ inputs.qt_patch }}-shared
@@ -154,6 +154,7 @@ jobs:
             -- \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_VERSION \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DCMAKE_APPLE_SDK_PLATFORM_VERSION_CHECK=OFF \
             -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang \
             -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang++ \
             -Wno-dev
