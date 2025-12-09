@@ -145,7 +145,7 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework -platform macx-clang \
             -- \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.1 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
             -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
