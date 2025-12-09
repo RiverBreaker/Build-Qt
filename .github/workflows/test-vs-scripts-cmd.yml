@@ -61,11 +61,11 @@ jobs:
             fi
           done
 
-          if brew list --formula "llvm@18" &>/dev/null; then
-              echo "⚠️  llvm@18 already installed, skipping..."
+          if brew list --formula "llvm@15" &>/dev/null; then
+              echo "⚠️  llvm@15 already installed, skipping..."
             else
-              echo "📦 Installing llvm@18..."
-              brew install "llvm@18"
+              echo "📦 Installing llvm@15..."
+              brew install "llvm@15"
             fi
 
           echo "🔍 Verifying tool locations with priority:"
@@ -75,13 +75,15 @@ jobs:
           ls /Library/Developer/CommandLineTools/SDKs/
           echo "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
           ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
-          ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
-          ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
-          # # download MacOSX14
-          # SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/14.5/MacOSX14.5.sdk.tar.xz"
-          # curl -L -o "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" "$SDK_URL"
-          # sudo tar -xJf "$RUNNER_TEMP/MacOSX14.5.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
+          # ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
+          # ls /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
+          # download MacOSX14
+          SDK_URL="https://github.com/joseluisq/macosx-sdks/releases/download/11.1/MacOSX11.1.sdk.tar.xz"
+          curl -L -o "$RUNNER_TEMP/MacOSX11.1.sdk.tar.xz" "$SDK_URL"
+          sudo tar -xJf "$RUNNER_TEMP/MacOSX11.1.sdk.tar.xz" -C /Library/Developer/CommandLineTools/SDKs/
+          ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX11.1.sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
           # ls /Library/Developer/CommandLineTools/SDKs/
+          ls /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
 
       - name: Download & extract Qt
         if: steps.cache-qt-source.outputs.cache-hit != 'true'
@@ -117,11 +119,11 @@ jobs:
           xcrun --show-sdk-path --sdk macosx
           xcrun --show-sdk-version --sdk macosx
           # 设置环境变量强制 SDK 选择
-          export SDKROOT=$(xcrun --sdk macosx14.5 --show-sdk-path)
+          export SDKROOT=$(xcrun --sdk macosx11.1 --show-sdk-path)
           export DEVELOPER_DIR=$(xcode-select -p)  # 保持当前开发者目录
 
           # 验证 SDK 版本
-          echo "使用 SDK 版本: $(xcrun --sdk macosx14.5 --show-sdk-version)"
+          echo "使用 SDK 版本: $(xcrun --sdk macosx11.1 --show-sdk-version)"
 
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
@@ -143,10 +145,10 @@ jobs:
             -confirm-license -qt-libpng -qt-libjpeg -qt-zlib -qt-pcre -qt-freetype \
             -no-sql-psql -no-framework -platform macx-clang \
             -- \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.5 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.1 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@18/bin/clang \
-            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@18/bin/clang++ \
+            -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang \
+            -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@15/bin/clang++ \
             -Wno-dev
           # 构建并安装
           cmake --build . --parallel
@@ -162,7 +164,7 @@ jobs:
           CONFIG: ${{ matrix.config }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifacts"
-          CLANG_FULL=$(clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
+          CLANG_FULL=$(/opt/homebrew/opt/llvm@15/bin/clang --version | grep -oE 'clang version [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $3}')
           CLANG_VER=$(echo "$CLANG_FULL" | cut -d. -f1)
           echo "🔍 Detected Clang: $CLANG_FULL → $CLANG_VER"
           ASSET="qt-${QT_VERSION}-shared-mac-clang_${CLANG_VER}_x64-${CONFIG}.tar.gz"
