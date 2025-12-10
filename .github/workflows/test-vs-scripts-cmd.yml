@@ -159,6 +159,8 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_VERSION \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DQT_NO_APPLE_SDK_MAX_VERSION_CHECK=ON \
+            -DLLVM_INSTALL_DIR="/opt/homebrew/opt/llvm@${LLVM_VERSION}" \
+            -DFEATURE_clang=ON -DFEATURE_clangcpp=ON \
             -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang \
             -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm@${LLVM_VERSION}/bin/clang++ \
             -DCMAKE_CXX_FLAGS="-isysroot $SDKROOT -mmacosx-version-min=$MACOSX_VERSION" \
