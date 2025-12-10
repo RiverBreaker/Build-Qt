@@ -110,6 +110,8 @@ jobs:
         run: |
           rm -rf "$RUNNER_TEMP/build"
           mkdir -p "$RUNNER_TEMP/build"
+          cd $RUNNER_TEMP/qt6_src/qt-everywhere-src-$QT_VERSION
+          patch -p1 -i "$GITHUB_WORKSPACE/patchs/fix-qttranslations-failed-to-resolve-language-warnings-on-macos.patch"
 
       - name: Configure & build & install ${{ matrix.config }}
         shell: bash

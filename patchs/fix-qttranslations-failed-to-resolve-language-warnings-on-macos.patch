@@ -1,0 +1,46 @@
+From 9a66527fead10f7965baa6fdca37986de2a96908 Mon Sep 17 00:00:00 2001
+From: Joerg Bornemann <joerg.bornemann@qt.io>
+Date: Wed, 19 Jun 2024 16:37:12 +0200
+Subject: [PATCH] CMake: Fix "Failed to resolve language" warnings on macOS
+
+All .ts files need to have a "language" attribute set. Otherwise, we
+generate CMake warnings on macOS when trying to extract the language
+from the .ts file.
+
+This patch adds sets the en-US language for the empty *_en.ts files we
+generate. Also, we add the missing language attribute to qt_sv.ts.
+
+Task-number: QTBUG-125151
+Change-Id: Idbead1543f7458c1f7a7ef2c61fecf4f04361cd7
+Reviewed-by:  Alexey Edelev <alexey.edelev@qt.io>
+Reviewed-by: Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
+---
+ translations/CMakeLists.txt | 2 +-
+ translations/qt_sv.ts       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/qttranslations/translations/CMakeLists.txt b/qttranslations/translations/CMakeLists.txt
+index 8b903d22..c18a1833 100644
+--- a/qttranslations/translations/CMakeLists.txt
++++ b/qttranslations/translations/CMakeLists.txt
+@@ -23,7 +23,7 @@ endfunction()
+ # Create a rudimentary .ts file in ${en_ts_file_dir}.
+ function(generate_empty_ts_file file_name)
+     if(NOT EXISTS "${en_ts_file_dir}/${file_name}")
+-        file(WRITE "${en_ts_file_dir}/${file_name}" "<TS></TS>")
++        file(WRITE "${en_ts_file_dir}/${file_name}" "<TS language=\"en_US\"></TS>")
+     endif()
+ endfunction()
+
+diff --git a/qttranslations/translations/qt_sv.ts b/qttranslations/translations/qt_sv.ts
+index 1c752ef8..26889db3 100644
+--- a/qttranslations/translations/qt_sv.ts
++++ b/qttranslations/translations/qt_sv.ts
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!DOCTYPE TS>
+-<TS version="2.0">
++<TS version="2.0" language="sv">
+ <context>
+     <name>MAC_APPLICATION_MENU</name>
+     <message>
